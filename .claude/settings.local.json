@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude:*)",
+      "Bash(npm install:*)",
+      "Bash(code .:*)",
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(node:*)",
+      "Bash(taskkill:*)",
+      "WebSearch",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:app.daily.dev)",
+      "Bash(lsof:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
