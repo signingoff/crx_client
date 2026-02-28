@@ -18,6 +18,7 @@
         :key="tweet.id"
         :tweet="tweet"
         :is-selected="tweet.id === selectedId"
+        :is-read="tweet.isRead"
         @select-tweet="$emit('select-tweet', $event)"
       />
     </div>

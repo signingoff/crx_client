@@ -430,26 +430,60 @@ export async function getReadStats() {
 | GET | /api/tweets/config | 获取 Query ID 配置 |
 | POST | /api/tweets/config/query-id | 更新 Query ID |
 | POST | /api/tweets/config/fetch-query-id | 自动获取 Query ID |
-| POST | /api/tweets/read-status | 批量查询已读状态 |
+| POST | /api/tweets/read-status | 批量查询已读状态（前端自动同步用） |
 
 #### 批量查询已读状态
 
+**用途**: 前端每5秒轮询，同步多客户端/多标签页的已读状态
+
+**文件**: `backend/src/routes/tweets.js`
+
 ```javascript
+import {
+  markPostAsRead,
+  getReadStats,
+  isPostRead  // 必须导入
+} from '../db/index.js';
+
+/**
+ * POST /api/tweets/read-status
+ * 批量查询推文的已读状态
+ * Body: { tweetIds: string[] }
+ * Response: { success: true, data: { [tweetId]: boolean } }
+ */
 router.post('/read-status', async (req, res) => {
-  const { tweetIds } = req.body;
-  const statusMap = {};
+  try {
+    const { tweetIds } = req.body;
 
-  for (const tweetId of tweetIds) {
-    const isRead = await isPostRead(tweetId);
-    statusMap[tweetId] = isRead;
+    if (!Array.isArray(tweetIds) || tweetIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '需要提供 tweetIds 数组'
+      });
+    }
+
+    // 查询每个推文的已读状态
+    const statusMap = {};
+    for (const tweetId of tweetIds) {
+      const isRead = await isPostRead(tweetId);
+      statusMap[tweetId] = isRead;
+    }
+
+    res.json({
+      success: true,
+      data: statusMap
+    });
+  } catch (error) {
+    console.error('Error fetching read status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '查询已读状态失败'
+    });
   }
-
-  res.json({
-    success: true,
-    data: statusMap
-  });
 });
 ```
+
+**重要**: `isPostRead` 函数必须从 `../db/index.js` 导入，否则会导致 404 错误
 
 #### 获取推文
 

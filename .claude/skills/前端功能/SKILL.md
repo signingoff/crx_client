@@ -48,6 +48,7 @@ frontend/
 |------|------|------|------|
 | tweet | Object | 是 | 推文数据对象 |
 | isSelected | Boolean | 否 | 是否被选中 |
+| isRead | Boolean | 否 | 是否已读（从父组件传入，用于自动同步） |
 
 ##### Emits
 | Event | 参数 | 说明 |
@@ -503,6 +504,18 @@ export async function getReadStats() {
 }
 
 /**
+ * 批量查询推文的已读状态（用于自动同步）
+ * @param {string[]} tweetIds - 推文ID数组
+ */
+export async function fetchReadStatus(tweetIds) {
+  if (!tweetIds || tweetIds.length === 0) return {}
+  const response = await axios.post(`${API_BASE}/tweets/read-status`, {
+    tweetIds
+  })
+  return response.data
+}
+
+/**
  * 获取已渲染推文数量
  */
 export async function getRenderedCount() {
@@ -683,6 +696,49 @@ function formatNumber(num) {
 - 支持浅色/深色主题切换
 - 可同时显示多条推文进行对比
 - 响应式网格布局
+
+### 10. 已读状态自动同步
+
+**文件**: `frontend/src/components/TweetList.vue`
+
+**功能**: 每5秒自动查询服务器已读状态，更新本地卡片显示（解决多客户端/多标签页同步问题）
+
+**实现原理**:
+```javascript
+// 1. 组件挂载时启动定时器
+onMounted(() => {
+  syncInterval = setInterval(syncReadStatus, 5000)
+})
+
+// 2. 批量查询已读状态
+async function syncReadStatus() {
+  const tweetIds = localTweets.value.map(t => t.id)
+  const response = await fetchReadStatus(tweetIds) // POST /api/tweets/read-status
+
+  // 3. 更新本地状态（服务器已读但本地未读时）
+  const updatedTweets = localTweets.value.map(tweet => {
+    if (readStatusMap[tweet.id] && !tweet.isRead) {
+      return { ...tweet, isRead: true }
+    }
+    return tweet
+  })
+}
+```
+
+**关键代码**:
+```vue
+<TweetCard
+  v-for="tweet in localTweets"
+  :key="tweet.id"
+  :tweet="tweet"
+  :is-selected="tweet.id === selectedId"
+  :is-read="tweet.isRead"  <!-- 传递 isRead 状态 -->
+/>
+```
+
+**注意**:
+- 同步是单向的：服务器已读 → 本地已读（不会反向覆盖）
+- 避免与三连击冲突：用户本地操作优先，同步只补充更新
 
 ### 3. 滚动条样式不生效
 **注意**: 滚动条样式现在定义在 `App.vue` 全局，而不是 `.content` 上

@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { getForYouTweets, getFollowingTweets } from '../services/xService.js';
 import {
   markPostAsRead,
-  getReadStats
+  getReadStats,
+  isPostRead
 } from '../db/index.js';
 import { getConfig, updateQueryId } from '../config/queryConfig.js';
 import { fetchQueryIdsFromX } from '../services/queryIdFetcher.js';
