@@ -54,6 +54,7 @@ frontend/
 |-------|------|------|
 | block-user | username | 屏蔽用户事件 |
 | select-tweet | tweetId | 选择推文事件 |
+| update:isRead | isRead | 已读状态变更 |
 
 ##### 数据结构
 ```javascript

@@ -9,7 +9,8 @@ description: X For You 后端功能说明 - Node.js + Express + SQLite 技术栈
 - Node.js (v18+)
 - Express 4.x
 - Axios (HTTP 请求)
-- better-sqlite3 (SQLite 数据库)
+- better-sqlite3 (SQLite 数据库，开发环境)
+- @supabase/supabase-js (Supabase 客户端，生产环境)
 - X.com GraphQL API
 
 ## 目录结构
@@ -206,7 +207,7 @@ const uniqueTweets = Array.from(uniqueTweetsMap.values())
 
 ### 2. 内容过滤
 
-#### 日语推文过滤
+#### 日语和韩语推文过滤
 
 ```javascript
 function isJapaneseText(text) {
@@ -215,14 +216,22 @@ function isJapaneseText(text) {
   const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF]/;
   return japaneseRegex.test(text);
 }
+
+function isKoreanText(text) {
+  if (!text) return false;
+  // 检测谚文音节、谚文字母、谚文兼容字母
+  const koreanRegex = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/;
+  return koreanRegex.test(text);
+}
 ```
 
 **过滤流程**:
 ```javascript
 return tweets.filter(tweet => {
   const isJapanese = isJapaneseText(tweet.text);
+  const isKorean = isKoreanText(tweet.text);
   const isRead = isPostRead(tweet.id);
-  return !isJapanese && !isRead;  // 只返回未读推文
+  return !isJapanese && !isKorean && !isRead;  // 只返回未读推文
 });
 ```
 
@@ -288,7 +297,42 @@ function extractMedia(tweet) {
 }
 ```
 
-### 4. SQLite 数据库
+### 4. 数据库
+
+**开发环境**: SQLite (`backend/src/db/sqlite.js`)
+**生产环境**: Supabase (`backend/src/db/supabase.js`)
+
+代码根据环境变量自动切换：
+```javascript
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+  // 使用 Supabase
+} else {
+  // 使用 SQLite
+}
+```
+
+### 5. Settings 表（Supabase）
+
+**用途**: 存储配置项（Query ID、Cookie 等）
+
+**表结构**:
+```sql
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  description TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**默认配置项**:
+- `HOME_TIMELINE_QUERY_ID` - HomeTimeline API Query ID
+- `HOME_LATEST_TIMELINE_QUERY_ID` - HomeLatestTimeline API Query ID
+- `X_AUTH_TOKEN` - X.com auth_token cookie
+- `X_CT0` - X.com ct0 cookie (CSRF token)
+- `X_BEARER_TOKEN` - X.com API Bearer Token
+
+### 6. SQLite 数据库
 
 **文件**: `backend/src/db/sqlite.js`
 
@@ -386,6 +430,26 @@ export async function getReadStats() {
 | GET | /api/tweets/config | 获取 Query ID 配置 |
 | POST | /api/tweets/config/query-id | 更新 Query ID |
 | POST | /api/tweets/config/fetch-query-id | 自动获取 Query ID |
+| POST | /api/tweets/read-status | 批量查询已读状态 |
+
+#### 批量查询已读状态
+
+```javascript
+router.post('/read-status', async (req, res) => {
+  const { tweetIds } = req.body;
+  const statusMap = {};
+
+  for (const tweetId of tweetIds) {
+    const isRead = await isPostRead(tweetId);
+    statusMap[tweetId] = isRead;
+  }
+
+  res.json({
+    success: true,
+    data: statusMap
+  });
+});
+```
 
 #### 获取推文
 
