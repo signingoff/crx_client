@@ -86,11 +86,12 @@ export async function getForYouTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语推文，只保留已读的推文
+    // 过滤掉日语和韩语推文，只保留未读的推文
     const filteredTweets = [];
     for (const tweet of tweets) {
       const isJapanese = isJapaneseText(tweet.text);
-      if (isJapanese) continue;
+      const isKorean = isKoreanText(tweet.text);
+      if (isJapanese || isKorean) continue;
 
       const isRead = await isPostRead(tweet.id);
       if (!isRead) {
@@ -172,11 +173,12 @@ export async function getFollowingTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语推文，只保留已读的推文
+    // 过滤掉日语和韩语推文，只保留未读的推文
     const filteredTweets = [];
     for (const tweet of tweets) {
       const isJapanese = isJapaneseText(tweet.text);
-      if (isJapanese) continue;
+      const isKorean = isKoreanText(tweet.text);
+      if (isJapanese || isKorean) continue;
 
       const isRead = await isPostRead(tweet.id);
       if (!isRead) {
@@ -201,6 +203,18 @@ function isJapaneseText(text) {
   // 检测平假名和片假名
   const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF]/;
   return japaneseRegex.test(text);
+}
+
+/**
+ * 检测文本是否为韩语
+ * @param {string} text - 推文文本
+ * @returns {boolean} 是否包含韩文字符
+ */
+function isKoreanText(text) {
+  if (!text) return false;
+  // 检测谚文音节、谚文字母、谚文兼容字母
+  const koreanRegex = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/;
+  return koreanRegex.test(text);
 }
 
 /**
