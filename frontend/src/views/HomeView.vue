@@ -1,114 +1,94 @@
 <template>
   <div class="home">
-    <div class="left-panel">
-      <header class="header">
-        <h1>🔥 X For You</h1>
-        <span v-if="loading" class="loading-indicator">⟳ 更新中...</span>
+    <header class="header">
+      <h1>🔥 X For You</h1>
+      <div class="header-actions">
+        <button class="settings-btn" @click="openSettings" title="设置">
+          ⚙️
+        </button>
+        <span v-if="loading && tweets.length === 0" class="loading-indicator">⟳ 加载中...</span>
         <span v-else-if="lastUpdated" class="last-updated">{{ lastUpdated }}</span>
-      </header>
+      </div>
+    </header>
 
+    <!-- 新推文提示条 -->
+    <div v-if="pendingTweets.length > 0" class="pending-bar">
+      <button class="load-btn" @click="loadPendingTweets">
+        Load {{ pendingTweets.length }} post{{ pendingTweets.length > 1 ? 's' : '' }}
+      </button>
+    </div>
+
+    <div class="content">
       <TweetList
         :tweets="tweets"
         :loading="loading && tweets.length === 0"
         :error="error"
-        :selected-id="selectedTweetId"
-        @block-user="handleBlockUser"
-        @select-tweet="selectTweet"
+        @select-tweet="openTweet"
       />
     </div>
 
-    <div class="right-panel">
-      <!-- 浏览器环境：扩展未安装时显示引导 -->
-      <ExtensionGuide
-        v-if="!isElectron && !extensionInstalled"
-        @installed="onExtensionInstalled"
-        @skip="onSkipExtension"
-      />
-
-      <!-- 内容显示区域 -->
-      <template v-else>
-        <div v-if="!selectedTweetUrl" class="empty-state">
-          <p>点击左侧推文查看详情</p>
-        </div>
-
-        <!-- Electron 环境：使用 webview -->
-        <webview
-          v-else-if="isElectron"
-          ref="tweetWebview"
-          :src="selectedTweetUrl"
-          class="x-webview"
-          :preload="webviewPreloadPath"
-          @dom-ready="onWebviewReady"
-        ></webview>
-
-        <!-- 浏览器环境：使用 iframe -->
-        <iframe
-          v-else
-          ref="tweetIframe"
-          :src="selectedTweetUrl"
-          class="x-iframe"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          referrerpolicy="no-referrer"
-          @load="onIframeLoad"
-        ></iframe>
-      </template>
-    </div>
+    <!-- 设置面板 -->
+    <QueryIdSettings
+      v-if="showSettings"
+      @close="closeSettings"
+      @updated="handleConfigUpdated"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import TweetList from '../components/TweetList.vue'
-import ExtensionGuide from '../components/ExtensionGuide.vue'
+import QueryIdSettings from '../components/QueryIdSettings.vue'
 import { fetchForYouTweets } from '../api/tweets.js'
-import { checkExtensionInstalled, waitForExtension } from '../utils/extension.js'
 
 const tweets = ref([])
+const pendingTweets = ref([])
 const loading = ref(false)
 const error = ref('')
 const lastUpdated = ref('')
-const selectedTweetId = ref(null)
-const extensionInstalled = ref(false)
-const extensionSkipped = ref(false)
-const tweetIframe = ref(null)
-const tweetWebview = ref(null)
+const showSettings = ref(false)
 let refreshInterval = null
 
-// 检测是否在 Electron 环境
-const isElectron = computed(() => {
-  return typeof window !== 'undefined' && window.electronAPI?.isElectron === true
-})
+function openSettings() {
+  showSettings.value = true
+}
 
-// webview preload 脚本路径（Electron 环境）
-const webviewPreloadPath = computed(() => {
-  if (isElectron.value && window.electronPaths?.webviewPreload) {
-    return window.electronPaths.webviewPreload
-  }
-  return ''
-})
+function closeSettings() {
+  showSettings.value = false
+}
 
-const selectedTweetUrl = computed(() => {
-  if (!selectedTweetId.value) return null
-  return `https://x.com/i/web/status/${selectedTweetId.value}`
-})
+function handleConfigUpdated() {
+  // Query ID 更新后刷新推文
+  loadTweets()
+}
 
 async function loadTweets() {
-  loading.value = true
+  // 如果是初始加载，显示loading
+  if (tweets.value.length === 0) {
+    loading.value = true
+  }
   error.value = ''
 
   try {
     const response = await fetchForYouTweets(20)
+    console.log('API response:', response)
     if (response.success) {
       const existingIds = new Set(tweets.value.map(t => t.id))
       const newTweets = response.data.filter(t => !existingIds.has(t.id))
 
-      if (newTweets.length > 0) {
-        tweets.value = [...newTweets, ...tweets.value]
-      } else if (tweets.value.length === 0) {
+      if (tweets.value.length === 0) {
+        // 初始加载，直接显示
         tweets.value = response.data
+        updateLastUpdatedTime()
+      } else if (newTweets.length > 0) {
+        // 有新推文，加入待加载列表
+        const pendingIds = new Set(pendingTweets.value.map(t => t.id))
+        const trulyNew = newTweets.filter(t => !pendingIds.has(t.id))
+        if (trulyNew.length > 0) {
+          pendingTweets.value = [...trulyNew, ...pendingTweets.value]
+        }
       }
-
-      updateLastUpdatedTime()
     } else {
       error.value = response.error || '获取失败'
     }
@@ -119,12 +99,18 @@ async function loadTweets() {
   }
 }
 
-function handleBlockUser(username) {
-  tweets.value = tweets.value.filter(t => t.author.username !== username)
+async function loadPendingTweets() {
+  // 将待加载推文添加到列表顶部
+  const loadedTweets = [...pendingTweets.value]
+  tweets.value = [...loadedTweets, ...tweets.value]
+  pendingTweets.value = []
+  updateLastUpdatedTime()
+  // 滚动到顶部（浏览器窗口）
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-function selectTweet(tweetId) {
-  selectedTweetId.value = tweetId
+function openTweet(tweetId) {
+  window.open(`https://x.com/i/web/status/${tweetId}`, '_blank')
 }
 
 function updateLastUpdatedTime() {
@@ -135,13 +121,6 @@ function updateLastUpdatedTime() {
 onMounted(() => {
   loadTweets()
   refreshInterval = setInterval(loadTweets, 15000)
-
-  // Electron 环境下跳过扩展检测
-  if (isElectron.value) {
-    extensionInstalled.value = true
-  } else {
-    checkExtension()
-  }
 })
 
 onUnmounted(() => {
@@ -149,53 +128,13 @@ onUnmounted(() => {
     clearInterval(refreshInterval)
   }
 })
-
-async function checkExtension() {
-  const result = await checkExtensionInstalled()
-  extensionInstalled.value = result.installed || extensionSkipped.value
-}
-
-function onExtensionInstalled() {
-  extensionInstalled.value = true
-}
-
-function onSkipExtension() {
-  extensionSkipped.value = true
-  extensionInstalled.value = true
-}
-
-function onIframeLoad() {
-  // iframe 加载完成后的处理
-  console.log('Iframe loaded:', selectedTweetUrl.value)
-}
-
-function onWebviewReady() {
-  // webview 加载完成后的处理
-  console.log('Webview ready:', selectedTweetUrl.value)
-}
 </script>
 
 <style scoped>
 .home {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.left-panel {
-  width: 400px;
-  min-width: 400px;
-  height: 100vh;
-  overflow-y: auto;
-  border-right: 1px solid #e1e8ed;
+  max-width: 800px;
+  margin: 0 auto;
   background: #fff;
-}
-
-.right-panel {
-  flex: 1;
-  height: 100vh;
-  position: relative;
-  background: #f7f9fa;
 }
 
 .header {
@@ -204,9 +143,9 @@ function onWebviewReady() {
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid #e1e8ed;
+  background: #fff;
   position: sticky;
   top: 0;
-  background: #fff;
   z-index: 10;
 }
 
@@ -227,22 +166,27 @@ h1 {
   color: #536471;
 }
 
-.x-iframe,
-.x-webview {
-  width: 100%;
-  height: 100%;
-  min-height: 100vh;
-  border: none;
-  display: block;
+.pending-bar {
+  padding: 12px 20px;
+  background: #f7f9fa;
+  border-bottom: 1px solid #e1e8ed;
+  text-align: center;
 }
 
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #536471;
-  font-size: 16px;
+.load-btn {
+  background: #1d9bf0;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.load-btn:hover {
+  background: #1a8cd8;
 }
 
 @keyframes pulse {
@@ -250,21 +194,23 @@ h1 {
   50% { opacity: 0.5; }
 }
 
-/* 自定义滚动条 */
-.left-panel::-webkit-scrollbar {
-  width: 6px;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.left-panel::-webkit-scrollbar-track {
-  background: transparent;
+.settings-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.2s;
 }
 
-.left-panel::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.left-panel::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+.settings-btn:hover {
+  background: #e1e8ed;
 }
 </style>

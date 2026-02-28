@@ -1,9 +1,20 @@
 <template>
   <div
     class="tweet-card"
-    :class="{ 'is-selected': isSelected }"
-    @click="selectTweet"
+    :class="{ 'is-selected': isSelected, 'is-read': isRead }"
+    @click="handleTripleClick"
+    title="连续单击3次切换已读/未读"
   >
+    <!-- 已读标记 -->
+    <div v-if="isRead" class="read-indicator">✓ 已读</div>
+
+    <!-- X 图标按钮 - 点击打开 X.com -->
+    <button class="x-link-btn" @click="openTweetLink" title="在 X.com 打开">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+    </button>
+
     <!-- 转发标识 -->
     <div v-if="isRetweet" class="retweet-header">
       <span>🔄 {{ tweet.author.name }} 转发了</span>
@@ -12,9 +23,29 @@
     <div class="tweet-header">
       <img :src="displayAuthor.avatar" :alt="displayAuthor.name" class="avatar" />
       <div class="author-info">
-        <span class="author-name">{{ displayAuthor.name }}</span>
-        <span class="author-username">@{{ displayAuthor.username }}</span>
-        <span class="tweet-time">{{ formatTime(tweet.createdAt) }}</span>
+        <div class="author-main">
+          <span class="author-name">{{ displayAuthor.name }}</span>
+          <span class="author-username">@{{ displayAuthor.username }}</span>
+          <span class="tweet-time">&nbsp;{{ formatTime(tweet.createdAt) }}</span>
+        </div>
+        <!-- 用户详细信息 -->
+        <div v-if="displayAuthor.description" class="author-description">
+          {{ displayAuthor.description }}
+        </div>
+        <div v-if="displayAuthor.location" class="author-meta">
+          <span class="meta-item">📍 {{ displayAuthor.location }}</span>
+        </div>
+        <div class="author-stats">
+          <span v-if="displayAuthor.followingCount !== undefined" class="stat-item">
+            <strong>{{ formatNumber(displayAuthor.followingCount) }}</strong> Following
+          </span>
+          <span v-if="displayAuthor.followersCount !== undefined" class="stat-item">
+            <strong>{{ formatNumber(displayAuthor.followersCount) }}</strong> Followers
+          </span>
+          <span v-if="displayAuthor.createdAt" class="stat-item">
+            Joined {{ formatJoinDate(displayAuthor.createdAt) }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -23,48 +54,21 @@
       <button
         v-if="tweet.isLongText"
         class="show-more-btn"
-        @click="toggleExpanded"
+        @click.stop="toggleExpanded"
       >
         {{ isExpanded ? 'Show less' : 'Show more' }}
       </button>
     </div>
 
-    <!-- 媒体内容 -->
-    <div v-if="tweet.media.length" class="tweet-media" :class="{ 'single': tweet.media.length === 1, 'multiple': tweet.media.length > 1 }">
+    <!-- 媒体内容：只显示图片，不显示视频/GIF -->
+    <div v-if="photoMedia.length" class="tweet-media" :class="{ 'single': photoMedia.length === 1, 'multiple': photoMedia.length > 1 }">
       <div
-        v-for="(media, index) in tweet.media"
+        v-for="(media, index) in photoMedia"
         :key="index"
         class="media-item"
-        :class="{ 'video-item': media.type === 'video' || media.type === 'animated_gif' }"
-        @click="media.type === 'photo' && openLightbox(media)"
+        @click.stop="openLightbox(media)"
       >
-        <!-- 静态图片 -->
-        <img v-if="media.type === 'photo'" :src="media.url" alt="Tweet media" loading="lazy" />
-
-        <!-- GIF 动画 -->
-        <a
-          v-else-if="media.type === 'animated_gif'"
-          :href="getOriginalTweetUrl()"
-          target="_blank"
-          rel="noopener"
-          class="gif-container"
-        >
-          <img :src="media.url" alt="GIF" class="media-thumb" loading="lazy" />
-          <span class="gif-badge">GIF</span>
-          <span class="play-icon">▶</span>
-        </a>
-
-        <!-- 视频 -->
-        <a
-          v-else-if="media.type === 'video'"
-          :href="getOriginalTweetUrl()"
-          target="_blank"
-          rel="noopener"
-          class="video-container"
-        >
-          <img :src="media.url" alt="Video" class="media-thumb" loading="lazy" />
-          <span class="video-badge">▶</span>
-        </a>
+        <img :src="getThumbnailUrl(media.url)" :data-full="media.url" alt="Tweet media" loading="lazy" />
       </div>
     </div>
 
@@ -93,6 +97,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { markTweetAsRead, markTweetAsUnread } from '../api/tweets.js'
 
 const props = defineProps({
   tweet: {
@@ -105,11 +110,22 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['block-user', 'select-tweet'])
+const emit = defineEmits(['select-tweet'])
 
 const lightboxOpen = ref(false)
 const lightboxImage = ref(null)
 const isExpanded = ref(false)
+const isRead = ref(false)
+
+// 三连击检测
+const clickCount = ref(0)
+let clickTimer = null
+const TRIPLE_CLICK_DELAY = 500 // 500ms 内连续点击3次视为三连击
+
+// 只获取图片类型的媒体
+const photoMedia = computed(() => {
+  return props.tweet.media?.filter(m => m.type === 'photo') || []
+})
 
 // 判断是否为转发
 const isRetweet = computed(() => {
@@ -133,7 +149,14 @@ const parsedRetweet = computed(() => {
 
 // 显示的作者（转发时显示原推文作者）
 const displayAuthor = computed(() => {
-  if (isRetweet.value && parsedRetweet.value) {
+  // 调试输出
+  console.log('tweet.author:', props.tweet.author)
+  // 非转发推文，直接返回原始 author
+  if (!isRetweet.value) {
+    return props.tweet.author
+  }
+  // 转发推文，尝试获取原推文作者信息
+  if (parsedRetweet.value) {
     // 尝试从 user_mentions 中找到原推文作者信息
     const mention = props.tweet.entities?.user_mentions?.find(
       m => m.screen_name === parsedRetweet.value.originalUsername
@@ -142,13 +165,24 @@ const displayAuthor = computed(() => {
       return {
         name: mention.name,
         username: mention.screen_name,
-        avatar: props.tweet.author.avatar // 转发时暂时使用转发者头像
+        avatar: props.tweet.author.avatar, // 转发时暂时使用转发者头像
+        // 转发推文中可能没有原推文的详细 info，使用转发者的
+        description: props.tweet.author.description,
+        location: props.tweet.author.location,
+        createdAt: props.tweet.author.createdAt,
+        followingCount: props.tweet.author.followingCount,
+        followersCount: props.tweet.author.followersCount
       }
     }
     return {
       name: parsedRetweet.value.originalUsername,
       username: parsedRetweet.value.originalUsername,
-      avatar: props.tweet.author.avatar
+      avatar: props.tweet.author.avatar,
+      description: props.tweet.author.description,
+      location: props.tweet.author.location,
+      createdAt: props.tweet.author.createdAt,
+      followingCount: props.tweet.author.followingCount,
+      followersCount: props.tweet.author.followersCount
     }
   }
   return props.tweet.author
@@ -174,8 +208,62 @@ function toggleExpanded() {
   isExpanded.value = !isExpanded.value
 }
 
-function selectTweet() {
-  emit('select-tweet', props.tweet.id)
+function openTweetLink() {
+  window.open(`https://x.com/i/web/status/${props.tweet.id}`, '_blank')
+}
+
+// 三连击切换已读/未读状态
+async function handleTripleClick() {
+  clickCount.value++
+
+  // 第一次点击时启动定时器
+  if (!clickTimer) {
+    clickTimer = setTimeout(() => {
+      // 超时重置计数
+      clickCount.value = 0
+      clickTimer = null
+    }, TRIPLE_CLICK_DELAY)
+  }
+
+  // 达到3次点击，执行切换
+  if (clickCount.value >= 3) {
+    // 清除定时器
+    clearTimeout(clickTimer)
+    clickTimer = null
+    clickCount.value = 0
+
+    // 切换状态
+    const newReadState = !isRead.value
+    isRead.value = newReadState
+
+    try {
+      if (newReadState) {
+        await markTweetAsRead(props.tweet.id)
+      } else {
+        await markTweetAsUnread(props.tweet.id)
+      }
+    } catch (err) {
+      console.error('标记已读/未读失败:', err)
+      // 如果失败，回滚状态
+      isRead.value = !newReadState
+    }
+  }
+}
+
+// 获取缩略图 URL
+function getThumbnailUrl(url) {
+  if (!url) return ''
+  // X/Twitter 图片支持通过 name 参数获取不同尺寸
+  // name=thumb/small/medium/large
+  if (url.includes('pbs.twimg.com')) {
+    // 如果 URL 已经有查询参数，添加 &name=small
+    if (url.includes('?')) {
+      return url + '&name=small'
+    }
+    // 否则添加 ?name=small
+    return url + '?name=small'
+  }
+  return url
 }
 
 function openLightbox(media) {
@@ -188,11 +276,6 @@ function closeLightbox() {
   lightboxOpen.value = false
   lightboxImage.value = null
   document.body.style.overflow = ''
-}
-
-function getOriginalTweetUrl() {
-  // 跳转到原推文
-  return `https://x.com/i/web/status/${props.tweet.id}`
 }
 
 function formatTime(dateString) {
@@ -219,12 +302,18 @@ function formatNumber(num) {
   return num.toString()
 }
 
+function formatJoinDate(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
 function formatText(text) {
   if (!text) return ''
-  // 高亮话题标签
+  // 高亮话题标签和@用户名，@用户名添加链接
   return text
     .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
-    .replace(/@(\w+)/g, '<span class="mention">@$1</span>')
+    .replace(/@(\w+)/g, '<a href="https://x.com/$1" target="_blank" class="mention-link" onclick="event.stopPropagation()">@$1</a>')
     .replace(/\n/g, '<br>')
 }
 </script>
@@ -242,13 +331,59 @@ function formatText(text) {
 
 .tweet-card:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
+}
+
+/* 已读状态 */
+.tweet-card.is-read {
+  /* 不修改背景颜色，只显示已读标记 */
+}
+
+.read-indicator {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #00ba7c;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  z-index: 2;
 }
 
 .tweet-card.is-selected {
   border-color: #1d9bf0;
   background: rgba(29, 155, 240, 0.05);
   box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.3);
+}
+
+/* X 链接按钮 */
+.x-link-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s;
+  z-index: 2;
+}
+
+.x-link-btn:hover {
+  background: rgba(29, 155, 240, 0.1);
+}
+
+.x-link-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #536471;
+  transition: fill 0.2s;
+}
+
+.x-link-btn:hover svg {
+  fill: #1d9bf0;
 }
 
 /* 转发头部 */
@@ -294,6 +429,46 @@ function formatText(text) {
   margin-top: 2px;
 }
 
+/* 用户详细信息 */
+.author-description {
+  font-size: 13px;
+  color: #536471;
+  margin-top: 4px;
+  line-height: 1.4;
+  max-width: 500px;
+}
+
+.author-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #536471;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.author-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #536471;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-item strong {
+  color: #0f1419;
+  font-weight: 600;
+}
+
 .tweet-content {
   margin-bottom: 12px;
   font-size: 15px;
@@ -305,8 +480,13 @@ function formatText(text) {
   color: #1d9bf0;
 }
 
-.tweet-content :deep(.mention) {
+.tweet-content :deep(.mention-link) {
   color: #1d9bf0;
+  text-decoration: none;
+}
+
+.tweet-content :deep(.mention-link:hover) {
+  text-decoration: underline;
 }
 
 .show-more-btn {
@@ -334,9 +514,19 @@ function formatText(text) {
   overflow: hidden;
 }
 
-/* 单张图片 */
+/* 单张图片 - 保持原始比例，限制最大高度 */
 .tweet-media.single {
   grid-template-columns: 1fr;
+}
+
+.tweet-media.single .media-item {
+  aspect-ratio: auto;
+  max-height: 500px;
+}
+
+.tweet-media.single .media-item img {
+  object-fit: contain;
+  object-position: center;
 }
 
 /* 多张图片网格布局 */
@@ -374,65 +564,6 @@ function formatText(text) {
 
 .media-item:hover img {
   transform: scale(1.02);
-}
-
-/* 媒体缩略图 */
-.media-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* GIF 容器 */
-.gif-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: block;
-  text-decoration: none;
-}
-
-.gif-badge {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* 视频容器 */
-.video-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: block;
-  text-decoration: none;
-}
-
-.video-badge,
-.play-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(29, 155, 240, 0.9);
-  color: white;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  padding-left: 4px;
-}
-
-.video-badge {
-  font-size: 16px;
 }
 
 /* 图片放大查看器 */

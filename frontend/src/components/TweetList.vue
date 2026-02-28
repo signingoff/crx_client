@@ -18,7 +18,6 @@
         :key="tweet.id"
         :tweet="tweet"
         :is-selected="tweet.id === selectedId"
-        @block-user="$emit('block-user', $event)"
         @select-tweet="$emit('select-tweet', $event)"
       />
     </div>
@@ -47,7 +46,7 @@ defineProps({
   }
 })
 
-defineEmits(['block-user', 'select-tweet'])
+defineEmits(['select-tweet'])
 </script>
 
 <style scoped>

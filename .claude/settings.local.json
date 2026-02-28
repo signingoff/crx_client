@@ -16,7 +16,19 @@
       "Bash(lsof:*)",
       "Bash(npx kill-port:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(start bash:*)",
+      "Bash(::*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:www.vuescript.com)",
+      "Bash(gh auth:*)",
+      "Bash(git config:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "Bash(rm:*)",
+      "Bash(echo:*)",
+      "Bash(git stash:*)"
     ]
   }
 }

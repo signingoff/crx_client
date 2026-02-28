@@ -1,11 +1,22 @@
 import axios from 'axios';
 import { xCookies } from '../config/auth.js';
-import { isBlacklisted } from '../config/blacklist.js';
+import { isPostLoaded } from '../db/index.js';
+import { getConfig } from '../config/queryConfig.js';
 
 const X_API_BASE = 'https://x.com/i/api/graphql';
 
-// HomeTimeline GraphQL query ID (这个ID可能会变化，需要定期更新)
-const HOME_TIMELINE_QUERY_ID = 'MpnCeE0hy8m5eWobPx8euw';
+// X API Bearer Token (从环境变量读取)
+const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN ;
+
+/**
+ * 获取当前 Query ID
+ */
+function getQueryId(type) {
+  const config = getConfig();
+  return type === 'home'
+    ? config.homeTimelineQueryId
+    : config.homeLatestTimelineQueryId;
+}
 
 /**
  * 获取 For You 页面的推文
@@ -13,10 +24,11 @@ const HOME_TIMELINE_QUERY_ID = 'MpnCeE0hy8m5eWobPx8euw';
  * @returns {Promise<Array>} 推文列表
  */
 export async function getForYouTweets(count = 20) {
-  const url = `${X_API_BASE}/${HOME_TIMELINE_QUERY_ID}/HomeTimeline`;
+  const queryId = getQueryId('home');
+  const url = `${X_API_BASE}/${queryId}/HomeTimeline`;
 
   const headers = {
-    'authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
+    'authorization': `Bearer ${X_BEARER_TOKEN}`,
     'x-csrf-token': xCookies.ct0,
     'x-twitter-active-user': 'yes',
     'x-twitter-auth-type': 'OAuth2Session',
@@ -74,15 +86,108 @@ export async function getForYouTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语推文和黑名单用户的推文
-    return tweets.filter(tweet => {
+    // 过滤掉日语推文和已加载的推文
+    const filteredTweets = [];
+    for (const tweet of tweets) {
       const isJapanese = isJapaneseText(tweet.text);
-      const isBlocked = isBlacklisted(tweet.author?.id, tweet.author?.username);
-      return !isJapanese && !isBlocked;
-    });
+      if (isJapanese) continue;
+
+      const loaded = await isPostLoaded(tweet.id);
+      if (!loaded) {
+        filteredTweets.push(tweet);
+      }
+    }
+    return filteredTweets;
   } catch (error) {
     console.error('Error fetching For You tweets:', error.response?.data || error.message);
     throw new Error('Failed to fetch For You tweets. Please check your cookies.');
+  }
+}
+
+/**
+ * 获取 Following 页面的推文
+ * @param {number} count - 获取推文数量
+ * @returns {Promise<Array>} 推文列表
+ */
+export async function getFollowingTweets(count = 20) {
+  const queryId = getQueryId('following');
+  const url = `${X_API_BASE}/${queryId}/HomeLatestTimeline`;
+
+  const headers = {
+    'authorization': `Bearer ${X_BEARER_TOKEN}`,
+    'x-csrf-token': xCookies.ct0,
+    'x-twitter-active-user': 'yes',
+    'x-twitter-auth-type': 'OAuth2Session',
+    'x-twitter-client-language': 'en',
+    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'accept': '*/*',
+    'accept-language': 'en-US,en;q=0.9',
+    'accept-encoding': 'gzip, deflate, br',
+    'referer': 'https://x.com/home',
+    'origin': 'https://x.com'
+  };
+
+  const variables = {
+    count,
+    includePromotedContent: true,
+    latestControlAvailable: true,
+    requestContext: 'following',
+    withCommunity: true,
+    withDownvotePerspective: false,
+    withReactionsMetadata: false,
+    withReactionsPerspective: false,
+    withSuperFollowsUserFields: true
+  };
+
+  const features = {
+    blue_business_profile_image_shape_enabled: true,
+    responsive_web_graphql_exclude_directive_enabled: true,
+    verified_phone_label_enabled: false,
+    responsive_web_home_pinned_timelines_enabled: true,
+    creator_subscriptions_tweet_preview_api_enabled: true,
+    responsive_web_graphql_timeline_navigation_enabled: true,
+    responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+    tweetypie_unmention_optimization_enabled: true,
+    responsive_web_edit_tweet_api_enabled: true,
+    graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
+    view_counts_everywhere_api_enabled: true,
+    longform_notetweets_consumption_enabled: true,
+    responsive_web_twitter_article_tweet_consumption_enabled: false,
+    tweet_awards_web_tipping_enabled: false,
+    freedom_of_speech_not_reach_fetch_enabled: true,
+    standardized_nudges_misinfo: true,
+    tweet_with_visibility_results_include_grok_learning_analyzing: false,
+    tweet_with_visibility_results_include_grok_analyzed_label: false,
+    responsive_web_media_download_video_enabled: false
+  };
+
+  try {
+    const response = await axios.get(url, {
+      headers,
+      params: {
+        variables: JSON.stringify(variables),
+        features: JSON.stringify(features)
+      }
+    });
+
+    const tweets = parseTweets(response.data);
+    // 过滤掉日语推文和已加载的推文
+    const filteredTweets = [];
+    for (const tweet of tweets) {
+      const isJapanese = isJapaneseText(tweet.text);
+      if (isJapanese) continue;
+
+      const loaded = await isPostLoaded(tweet.id);
+      if (!loaded) {
+        filteredTweets.push(tweet);
+      }
+    }
+    return filteredTweets;
+  } catch (error) {
+    console.error('Error fetching Following tweets:', error.response?.data || error.message);
+    // 如果失败，返回空数组，不中断流程
+    return [];
   }
 }
 
@@ -143,11 +248,16 @@ function extractTweetFromEntry(entry) {
 /**
  * 格式化推文数据
  * @param {Object} tweetData - 原始推文数据
- * @returns {Object} 格式化后的推文
+ * @returns {Object|null} 格式化后的推文，如果数据无效则返回 null
  */
 function formatTweet(tweetData) {
   const tweet = tweetData.legacy || tweetData;
   const user = tweetData.core?.user_results?.result || {};
+
+  // 用户信息分散在两个位置：
+  // - user.legacy: description, followers_count, friends_count
+  // - user.core: name, screen_name, location, created_at
+  const userLegacy = user.legacy || {};
   const userCore = user.core || {};
 
   // 获取长推文完整文本（超过 280 字符）
@@ -159,6 +269,17 @@ function formatTweet(tweetData) {
   // 获取完整文本，优先使用长推文文本
   const fullText = noteTweetText || tweet.full_text || tweet.text || '';
 
+  // 获取作者 ID
+  const authorId = tweet.user_id_str || userCore.id_str || userCore.id;
+
+  // 过滤条件：text 为空 或 author.id 为空
+  if (!fullText.trim()) {
+    return null;
+  }
+  if (!authorId) {
+    return null;
+  }
+
   // 判断是否为长推文：有 noteTweetText 或者文本超过 280 字符
   const isLongText = !!noteTweetText || fullText.length > 280;
 
@@ -168,10 +289,15 @@ function formatTweet(tweetData) {
     isLongText,
     createdAt: tweet.created_at,
     author: {
-      id: tweet.user_id_str,
+      id: authorId,
       name: userCore.name,
       username: userCore.screen_name,
-      avatar: user.avatar?.image_url?.replace('_normal', '')
+      avatar: user.avatar?.image_url?.replace('_normal', ''),
+      description: userLegacy.description,
+      location: userCore.location,
+      createdAt: userCore.created_at,
+      followingCount: userLegacy.friends_count,
+      followersCount: userLegacy.followers_count
     },
     metrics: {
       replies: tweet.reply_count,

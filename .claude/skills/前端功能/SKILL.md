@@ -10,201 +10,656 @@ description: X For You 前端功能说明 - Vue 3 + Vite 技术栈
 - Vite
 - Axios
 
+## 目录结构
+
+```
+frontend/
+├── src/
+│   ├── api/
+│   │   └── tweets.js          # API 请求封装
+│   ├── components/
+│   │   ├── TweetCard.vue      # 单条推文卡片组件
+│   │   └── TweetList.vue      # 推文列表容器
+│   ├── views/
+│   │   └── HomeView.vue       # 主页面视图
+│   ├── App.vue                # 根组件
+│   └── main.js                # 入口文件
+├── index.html
+├── package.json
+└── vite.config.js
+```
+
 ## 核心功能
 
 ### 1. 推文展示
+
+#### TweetCard.vue 组件详解
+
 **文件**: `frontend/src/components/TweetCard.vue`
 
-- 作者信息：头像、名称、用户名
-- 推文内容：高亮话题标签 # 和提及 @
-- 相对时间显示（刚刚、X分钟前、X小时前、X天前）
-- 互动指标：回复、转发、点赞、浏览量
+##### Props
+| Prop | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tweet | Object | 是 | 推文数据对象 |
+| isSelected | Boolean | 否 | 是否被选中 |
 
-#### RT（转发）嵌套显示
-- 转发推文显示转发者名称（🔄 xxx 转发了）
-- 显示原推文作者信息
-- 解析 RT @username: content 格式，提取原推文内容
+##### Emits
+| Event | 参数 | 说明 |
+|-------|------|------|
+| block-user | username | 屏蔽用户事件 |
+| select-tweet | tweetId | 选择推文事件 |
 
-#### 长推文（Show more/Show less）
-- 超过 280 字符的长推文显示 "Show more" 按钮
-- 默认折叠显示前 280 字符 + "..."
-- 点击展开显示完整文本，按钮变为 "Show less"
-- 依赖后端 `isLongText` 标记识别长推文
-
-#### 拉黑菜单
-**文件**: `frontend/src/components/TweetCard.vue`
-
-实现细节：
-- 右上角 "⋯" 按钮，点击展开下拉菜单
-- 菜单项："🚫 拉黑 @username"（红色警示文字）
-- 点击外部区域自动关闭菜单（使用 `v-click-outside` 指令）
-- 调用 API 成功后：
-  1. 显示成功提示
-  2. 触发 `block-user` 事件通知父组件
-  3. 父组件从列表中过滤该用户所有推文
-
-事件流：
-```
-TweetCard → @block-user → TweetList → @block-user → HomeView → filter tweets
-```
-
-**HomeView.vue 处理逻辑**:
+##### 数据结构
 ```javascript
-function handleBlockUser(username) {
-  // 拉黑后从列表中移除该用户的推文
-  tweets.value = tweets.value.filter(t => t.author.username !== username)
+// tweet 对象结构
+{
+  id: '123456789',
+  text: '推文内容',
+  isLongText: false,
+  createdAt: '2026-01-15T10:30:00.000Z',
+  author: {
+    id: '987654321',
+    name: 'User Name',
+    username: 'username',
+    avatar: 'https://pbs.twimg.com/...',
+    description: '个人简介',
+    location: 'Hong Kong',
+    createdAt: '2015-08-01T00:00:00.000Z',
+    followingCount: 41,
+    followersCount: 2989
+  },
+  metrics: {
+    replies: 10,
+    retweets: 5,
+    likes: 100,
+    views: 1000
+  },
+  media: [
+    { type: 'photo', url: 'https://pbs.twimg.com/...' }
+  ],
+  entities: { ... }
 }
 ```
 
-#### 布局
-- 卡片宽度：800px（已从 600px 加宽）
-- 圆角边框、阴影效果
+##### 功能特性
 
+**1. 作者信息展示**
+- 头像（48px 圆形）
+- 显示名称（加粗）
+- 用户名（@xxx，灰色）
+- 发布时间（相对时间）
+
+**2. 用户详细信息**
+显示在作者名称下方：
+- **description**: 个人简介（可能包含 Telegram 等联系方式）
+- **location**: 位置信息（📍 图标前缀）
+- **followingCount**: 关注数
+- **followersCount**: 粉丝数
+- **createdAt**: 注册时间（格式：Joined Month Year）
+
+示例：
+```
+📍 Hong Kong
+41 Following  2,989 Followers  Joined August 2015
+```
+
+**3. 推文内容处理**
+
+```javascript
+// formatText 函数 - 高亮话题标签和@用户名
+function formatText(text) {
+  if (!text) return ''
+  return text
+    .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
+    .replace(/@(\w+)/g, '<a href="https://x.com/$1" target="_blank" class="mention-link" onclick="event.stopPropagation()">@$1</a>')
+    .replace(/\n/g, '<br>')
+}
+```
+
+**4. 三连击切换已读/未读**
+
+```javascript
+const TRIPLE_CLICK_DELAY = 500 // 500ms 内完成3次点击
+
+async function handleTripleClick() {
+  clickCount.value++
+
+  // 第一次点击启动定时器
+  if (!clickTimer) {
+    clickTimer = setTimeout(() => {
+      clickCount.value = 0
+      clickTimer = null
+    }, TRIPLE_CLICK_DELAY)
+  }
+
+  // 达到3次点击
+  if (clickCount.value >= 3) {
+    clearTimeout(clickTimer)
+    clickTimer = null
+    clickCount.value = 0
+
+    const newReadState = !isRead.value
+    isRead.value = newReadState
+
+    try {
+      if (newReadState) {
+        await markTweetAsRead(props.tweet.id)
+      } else {
+        await markTweetAsUnread(props.tweet.id)
+      }
+    } catch (err) {
+      console.error('标记已读/未读失败:', err)
+      isRead.value = !newReadState
+    }
+  }
+}
+```
+
+**5. RT（转发）嵌套显示**
+
+```javascript
+// 判断是否为转发
+const isRetweet = computed(() => {
+  return props.tweet.text?.startsWith('RT @')
+})
+
+// 解析转发内容
+const parsedRetweet = computed(() => {
+  if (!isRetweet.value) return null
+  const text = props.tweet.text
+  const match = text.match(/^RT @([^:]+): (.+)$/s)
+  if (match) {
+    return {
+      originalUsername: match[1],
+      originalText: match[2]
+    }
+  }
+  return null
+})
+
+// 显示的作者
+const displayAuthor = computed(() => {
+  if (!isRetweet.value) {
+    return props.tweet.author
+  }
+  // 转发推文处理...
+})
+```
+
+**6. 长推文处理**
+
+```javascript
+// 显示的文本
+const displayText = computed(() => {
+  let text = props.tweet.text || ''
+
+  if (isRetweet.value && parsedRetweet.value) {
+    text = parsedRetweet.value.originalText
+  }
+
+  // 长推文未展开时截断
+  if (props.tweet.isLongText && !isExpanded.value) {
+    return text.slice(0, 280) + '...'
+  }
+  return text
+})
+```
+
+**7. 媒体图片处理**
+
+```javascript
+// 只获取图片类型的媒体
+const photoMedia = computed(() => {
+  return props.tweet.media?.filter(m => m.type === 'photo') || []
+})
+
+// 获取缩略图 URL
+function getThumbnailUrl(url) {
+  if (!url) return ''
+  if (url.includes('pbs.twimg.com')) {
+    if (url.includes('?')) {
+      return url + '&name=small'
+    }
+    return url + '?name=small'
+  }
+  return url
+}
+```
+
+**8. Lightbox 图片放大**
+
+```javascript
+const lightboxOpen = ref(false)
+const lightboxImage = ref(null)
+
+function openLightbox(media) {
+  lightboxImage.value = media
+  lightboxOpen.value = true
+  document.body.style.overflow = 'hidden' // 禁止背景滚动
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false
+  lightboxImage.value = null
+  document.body.style.overflow = '' // 恢复滚动
+}
+```
 
 ### 2. 媒体处理
-**文件**: `frontend/src/components/TweetCard.vue`
 
-#### 静态图片
-- 网格布局自适应（1-4张不同排列）
-- 点击放大查看（Lightbox）
-- 再次点击或关闭按钮退出
-- 懒加载优化
+#### 图片网格布局
 
-#### 视频/GIF
-- 显示缩略图 + 播放按钮
-- 点击跳转到 X 原推文观看
-- GIF 标识标签
-
-#### 布局规则
 | 图片数量 | 布局方式 |
 |---------|---------|
-| 1张 | 全宽展示 |
-| 2张 | 等分两列 |
+| 1张 | 全宽展示，保持原始比例，最大高度 500px |
+| 2张 | 等分两列，grid-template-columns: repeat(2, 1fr) |
 | 3张 | 首图跨两列，下面两张并排 |
 | 4张 | 2x2 标准网格 |
 
-### 3. 自动刷新
-**文件**: `frontend/src/views/HomeView.vue`
-
-- 刷新间隔：15秒
-- 防缓存机制：URL 添加 `?t=时间戳` 参数
-- 新推文检测：与现有推文对比 ID
-- 新推文自动插入列表顶部（无需点击提示条）
-- UI 效果：
-  - 顶部"更新中..."动画指示器
-  - 显示最后更新时间（精确到秒）
-- 已移除手动刷新按钮、新推文提示条
-
-### 4. 双栏布局（推文列表 + X.com 嵌入预览）
-**文件**: `frontend/src/views/HomeView.vue`
-
-布局结构：
-```
-┌─────────────────┬──────────────────────────────┐
-│                 │                              │
-│   左侧推文列表   │      右侧 X.com iframe       │
-│   (400px 固定)  │      (自适应宽度)             │
-│                 │      显示原始推文页面         │
-│                 │      通过 Chrome 扩展隐藏导航 │
-└─────────────────┴──────────────────────────────┘
-```
-
-功能：
-- 点击左侧推文卡片，右侧 iframe 加载对应 X.com 推文页面
-- 选中推文显示蓝色边框高亮
-- 依赖 Chrome Extension 移除 `X-Frame-Options` 限制
-- Content Script 隐藏 x.com 的 header 和侧边栏
-
-### 5. Chrome Extension（iframe 支持）
-**文件**: `frontend/public/manifest.json`, `rules.json`, `content-script.js`
-
-**安装方式**：
-1. 打开 Chrome 扩展管理页 `chrome://extensions/`
-2. 开启「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择 `frontend/public` 目录
-
-**功能**：
-- `rules.json` - 使用 `declarativeNetRequest` API 移除 `X-Frame-Options` 和 `Content-Security-Policy` 响应头
-- `content-script.js` - 隐藏 X.com 的 header、侧边栏，调整布局
-
-**原理**：
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  前端页面   │────▶│  Chrome扩展 │────▶│   x.com     │
-│  iframe请求 │     │ 修改响应头   │     │ 返回页面    │
-└─────────────┘     └─────────────┘     └─────────────┘
-```
-
-## 关键配置
-
-### 双栏布局样式
-**文件**: `frontend/src/views/HomeView.vue`
 ```css
-.home {
-  display: flex;
-  height: 100vh;
+.tweet-media {
+  display: grid;
+  gap: 4px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.left-panel {
-  width: 400px;
-  min-width: 400px;
-  border-right: 1px solid #e1e8ed;
+/* 单张图片 - 保持原始比例 */
+.tweet-media.single {
+  grid-template-columns: 1fr;
 }
 
-.right-panel {
-  flex: 1;
-  background: #fff;
-  overflow-y: auto;
+.tweet-media.single .media-item {
+  aspect-ratio: auto;
+  max-height: 500px;
+}
+
+.tweet-media.single .media-item img {
+  object-fit: contain;
+  object-position: center;
+}
+
+/* 多张图片网格布局 */
+.tweet-media.multiple {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tweet-media.multiple .media-item {
+  aspect-ratio: 1;
+}
+
+.tweet-media.multiple .media-item img {
+  object-fit: cover;
 }
 ```
 
-## 前端 API 调用
+**关键点**:
+- 单张图片使用 `object-fit: contain` 保持完整显示，不会被裁剪
+- 多张图片使用 `object-fit: cover` 填充正方形区域
+- 单张图片限制 `max-height: 500px` 避免过高
+
+### 3. 主页面布局
+
+#### HomeView.vue 详解
+
+**文件**: `frontend/src/views/HomeView.vue`
+
+##### 响应式数据
+
+```javascript
+const tweets = ref([])           // 已显示的推文列表
+const pendingTweets = ref([])    // 待加载的新推文
+const loading = ref(false)       // 加载状态
+const error = ref('')            // 错误信息
+const lastUpdated = ref('')      // 最后更新时间
+let refreshInterval = null       // 自动刷新定时器
+```
+
+##### 核心方法
+
+**加载推文**
+```javascript
+async function loadTweets() {
+  if (tweets.value.length === 0) {
+    loading.value = true
+  }
+  error.value = ''
+
+  try {
+    const response = await fetchForYouTweets(20)
+    if (response.success) {
+      const existingIds = new Set(tweets.value.map(t => t.id))
+      const newTweets = response.data.filter(t => !existingIds.has(t.id))
+
+      if (tweets.value.length === 0) {
+        // 初始加载
+        tweets.value = response.data
+        updateLastUpdatedTime()
+      } else if (newTweets.length > 0) {
+        // 有新推文，加入待加载列表
+        const pendingIds = new Set(pendingTweets.value.map(t => t.id))
+        const trulyNew = newTweets.filter(t => !pendingIds.has(t.id))
+        if (trulyNew.length > 0) {
+          pendingTweets.value = [...trulyNew, ...pendingTweets.value]
+        }
+      }
+    }
+  } catch (err) {
+    error.value = err.message || '网络错误'
+  } finally {
+    loading.value = false
+  }
+}
+```
+
+**加载待显示推文**
+```javascript
+async function loadPendingTweets() {
+  const loadedTweets = [...pendingTweets.value]
+  tweets.value = [...loadedTweets, ...tweets.value]
+  pendingTweets.value = []
+  updateLastUpdatedTime()
+
+  // 滚动到顶部（浏览器窗口）
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  // 标记为已加载
+  const tweetIds = loadedTweets.map(t => t.id)
+  await markTweetsAsRendered(tweetIds)
+}
+```
+
+##### 生命周期钩子
+
+```javascript
+onMounted(() => {
+  loadTweets()
+  refreshInterval = setInterval(loadTweets, 15000) // 15秒刷新
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
+})
+```
+
+### 4. 浏览器窗口滚动
+
+**关键修改**（区别于 div 内滚动）：
+
+```css
+/* App.vue - 全局样式 */
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: #f7f9fa;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* 浏览器窗口滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f7f9fa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+```
+
+```css
+/* HomeView.vue - Header 固定 */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+}
+```
+
+### 5. API 封装
+
 **文件**: `frontend/src/api/tweets.js`
 
-### 获取推文
 ```javascript
-// 获取推文（自动添加时间戳防缓存）
-GET http://localhost:3000/api/tweets/for-you?count=20&t=123456789
-```
+import axios from 'axios'
 
-### 拉黑用户
-```javascript
-// 前端拉黑用户（通过"..."菜单调用）
-POST http://localhost:3000/api/tweets/blacklist
-Content-Type: application/json
+const API_BASE = 'http://localhost:3000/api'
 
-{
-  "username": "targetuser"  // 或 userId: "123456789"
+/**
+ * 获取 For You 页面的推文
+ * @param {number} count - 获取数量
+ */
+export async function fetchForYouTweets(count = 20) {
+  const response = await axios.get(`${API_BASE}/tweets/for-you`, {
+    params: { count, t: Date.now() }
+  })
+  return response.data
+}
+
+/**
+ * 标记推文为已加载（过滤新推文用）
+ * @param {string[]} tweetIds - 推文ID数组
+ */
+export async function markTweetsAsRendered(tweetIds) {
+  if (!tweetIds || tweetIds.length === 0) return
+  const response = await axios.post(`${API_BASE}/tweets/mark-rendered`, {
+    tweetIds
+  })
+  return response.data
+}
+
+/**
+ * 标记单条推文为已读
+ * @param {string} tweetId - 推文ID
+ */
+export async function markTweetAsRead(tweetId) {
+  if (!tweetId) return
+  const response = await axios.post(`${API_BASE}/tweets/mark-read`, {
+    tweetId,
+    isRead: true
+  })
+  return response.data
+}
+
+/**
+ * 标记单条推文为未读
+ * @param {string} tweetId - 推文ID
+ */
+export async function markTweetAsUnread(tweetId) {
+  if (!tweetId) return
+  const response = await axios.post(`${API_BASE}/tweets/mark-read`, {
+    tweetId,
+    isRead: false
+  })
+  return response.data
+}
+
+/**
+ * 获取已读统计
+ */
+export async function getReadStats() {
+  const response = await axios.get(`${API_BASE}/tweets/read-stats`)
+  return response.data
+}
+
+/**
+ * 获取已渲染推文数量
+ */
+export async function getRenderedCount() {
+  const response = await axios.get(`${API_BASE}/tweets/rendered-count`)
+  return response.data
 }
 ```
 
-## 组件结构
-```
-frontend/src/
-├── components/
-│   ├── TweetCard.vue      # 单条推文卡片（支持点击选中）
-│   └── TweetList.vue      # 推文列表容器
-├── views/
-│   └── HomeView.vue       # 双栏布局主页面（左列表 + 右iframe）
-├── api/
-│   └── tweets.js          # API 请求封装
-└── App.vue                # 根组件
+### 6. 工具函数
 
-frontend/public/           # Chrome Extension 文件
-├── manifest.json          # 扩展配置（声明式网络请求规则）
-├── rules.json             # 网络请求规则（移除 X-Frame-Options）
-└── content-script.js      # 内容脚本（隐藏 x.com UI）
-```
+#### 时间格式化
 
-## 关键配置
-
-### 自动刷新间隔
-**文件**: `frontend/src/views/HomeView.vue`
 ```javascript
-// 第 87 行
-refreshInterval = setInterval(loadTweets, 15000)  // 15秒
+function formatTime(dateString) {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now - date
+
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 7) return `${days}天前`
+
+  return date.toLocaleDateString('zh-CN')
+}
+
+function formatJoinDate(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
 ```
 
-### CORS 配置
-后端支持的前端端口：`5173`, `5174`, `5175`
+#### 数字格式化
+
+```javascript
+function formatNumber(num) {
+  if (!num) return '0'
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+  return num.toString()
+}
+```
+
+## 交互功能
+
+### 三连击切换已读/未读
+
+- **触发**: 连续单击 TweetCard.vue 卡片 3 次（500ms 内）
+- **效果**: 切换左上角绿色 ✓ 已读标记（显示/隐藏）
+- **API**: 调用 `POST /api/tweets/mark-read` (isRead: true/false)
+- **数据库**: 更新 SQLite `read_posts.is_read` (0/1)
+- **注意**: 不改变背景颜色
+
+### X.com 跳转
+
+- **触发**: 点击卡片右上角的 X 图标
+- **行为**: 新标签页打开 `https://x.com/i/web/status/{tweetId}`
+
+### @用户名链接
+
+- 推文内容中的 `@username` 自动转换为可点击链接
+- 点击跳转到 `https://x.com/username`
+- 点击时阻止事件冒泡，避免触发三连击
+
+### 图片 Lightbox
+
+- 点击图片打开放大查看
+- 背景变黑，图片居中显示
+- 点击背景或关闭按钮退出
+
+## 样式规范
+
+### 颜色变量
+
+| 用途 | 颜色值 |
+|------|--------|
+| 主色调（X蓝） | `#1d9bf0` |
+| 文字主色 | `#0f1419` |
+| 文字次要 | `#536471` |
+| 边框 | `#e1e8ed` |
+| 背景 | `#f7f9fa` |
+| 已读标记绿 | `#00ba7c` |
+
+### 字体规范
+
+- 基础字体: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
+- 作者名称: 15px, font-weight: 700
+- 用户名: 14px, color: #536471
+- 推文内容: 15px, line-height: 1.5
+- 互动指标: 13px, color: #536471
+
+### 间距规范
+
+- 卡片内边距: 16px
+- 卡片间距: 12px
+- 头像与信息间距: 12px
+- 作者信息行间距: 4px
+
+## 常见问题
+
+### 1. 点击 @链接时触发三连击
+**解决**: 使用 `onclick="event.stopPropagation()"` 阻止事件冒泡
+
+### 2. 图片缩略图不显示
+**检查**:
+- URL 是否正确拼接 `?name=small` 或 `&name=small`
+- 是否使用 `pbs.twimg.com` 域名
+
+### 3. 单张图片显示不完整（被裁剪）
+**问题**: 使用 `aspect-ratio: 1` 强制正方形导致图片被裁剪
+**解决**: 单张图片使用 `object-fit: contain` 保持原始比例，多张图片使用 `object-fit: cover`
+```css
+/* 单张图片 - 保持原始比例 */
+.tweet-media.single .media-item {
+  aspect-ratio: auto;
+  max-height: 500px;
+}
+
+.tweet-media.single .media-item img {
+  object-fit: contain;
+}
+
+/* 多张图片 - 填充正方形 */
+.tweet-media.multiple .media-item {
+  aspect-ratio: 1;
+}
+
+.tweet-media.multiple .media-item img {
+  object-fit: cover;
+}
+```
+
+### 3. 滚动条样式不生效
+**注意**: 滚动条样式现在定义在 `App.vue` 全局，而不是 `.content` 上
+
+### 4. 三连击判定不准确
+**调整**: 可以修改 `TRIPLE_CLICK_DELAY` 值（默认 500ms）
+
+## 开发调试
+
+### 启动开发模式
+
+```bash
+cd frontend
+npm run dev
+```
+
+启动日志会自动写入 `frontend/frontend.log` 文件。
+
+**实时查看日志：**
+```bash
+# Windows
+tail -f frontend\frontend.log
+
+# Linux/Mac
+tail -f frontend/frontend.log
+```
+
+### 查看 API 请求
+浏览器 Network 面板过滤 `localhost:3000`
+
+### 检查后端数据
+浏览器 Console 查看 `console.log('API response:', response)`
