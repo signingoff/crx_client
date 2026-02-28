@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node src/index.js > backend.log 2>&1",
-    "start": "node src/index.js > backend.log 2>&1",
+    "start": "node src/index.js",
     "dev:fetch": "node scripts/dev-with-fetch.js",
     "fetch:query-id": "node scripts/fetch-query-id.js",
     "test": "vitest run",

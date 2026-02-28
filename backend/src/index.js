@@ -10,16 +10,29 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 中间件
+// 允许所有来源（Render 前端可能有不同域名）
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function(origin, callback) {
+    // 允许没有 origin 的请求（如移动应用、Postman）
+    if (!origin) return callback(null, true);
+    // 允许本地开发和 Render 域名
+    if (allowedOrigins.includes(origin) || origin.includes('onrender.com') || origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    callback(null, true); // 暂时允许所有来源
+  },
   credentials: true
 }));
 
 app.use(express.json());
 
-// 验证 cookies
-validateCookies();
+// 验证 cookies（可选，仅记录警告）
+try {
+  validateCookies();
+} catch (err) {
+  console.warn('⚠️ Cookie 验证警告:', err.message);
+}
 
 // 路由
 app.use('/api/tweets', tweetsRouter);
