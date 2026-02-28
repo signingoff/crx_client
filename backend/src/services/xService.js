@@ -4,8 +4,8 @@ import { getConfig, getXCookies, loadConfigFromDB } from '../config/settingsConf
 
 const X_API_BASE = 'https://x.com/i/api/graphql';
 
-// 确保配置已加载
-await loadConfigFromDB();
+// 配置加载标志
+let configLoaded = false;
 
 /**
  * 获取当前 Query ID
@@ -23,6 +23,12 @@ function getQueryId(type) {
  * @returns {Promise<Array>} 推文列表
  */
 export async function getForYouTweets(count = 20) {
+  // 懒加载配置
+  if (!configLoaded) {
+    await loadConfigFromDB();
+    configLoaded = true;
+  }
+
   const queryId = getQueryId('home');
   const url = `${X_API_BASE}/${queryId}/HomeTimeline`;
 
@@ -113,6 +119,12 @@ export async function getForYouTweets(count = 20) {
  * @returns {Promise<Array>} 推文列表
  */
 export async function getFollowingTweets(count = 20) {
+  // 懒加载配置
+  if (!configLoaded) {
+    await loadConfigFromDB();
+    configLoaded = true;
+  }
+
   const queryId = getQueryId('following');
   const url = `${X_API_BASE}/${queryId}/HomeLatestTimeline`;
 
