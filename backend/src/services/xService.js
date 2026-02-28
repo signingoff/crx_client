@@ -1,12 +1,11 @@
 import axios from 'axios';
-import { xCookies } from '../config/auth.js';
 import { isPostRead } from '../db/index.js';
-import { getConfig } from '../config/queryConfig.js';
+import { getConfig, getXCookies, loadConfigFromDB } from '../config/settingsConfig.js';
 
 const X_API_BASE = 'https://x.com/i/api/graphql';
 
-// X API Bearer Token (从环境变量读取)
-const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN ;
+// 确保配置已加载
+await loadConfigFromDB();
 
 /**
  * 获取当前 Query ID
@@ -27,13 +26,16 @@ export async function getForYouTweets(count = 20) {
   const queryId = getQueryId('home');
   const url = `${X_API_BASE}/${queryId}/HomeTimeline`;
 
+  // 从数据库获取最新的 cookies
+  const cookies = await getXCookies();
+
   const headers = {
-    'authorization': `Bearer ${X_BEARER_TOKEN}`,
-    'x-csrf-token': xCookies.ct0,
+    'authorization': `Bearer ${cookies.bearer_token}`,
+    'x-csrf-token': cookies.ct0,
     'x-twitter-active-user': 'yes',
     'x-twitter-auth-type': 'OAuth2Session',
     'x-twitter-client-language': 'en',
-    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'accept': '*/*',
     'accept-language': 'en-US,en;q=0.9',
@@ -114,13 +116,16 @@ export async function getFollowingTweets(count = 20) {
   const queryId = getQueryId('following');
   const url = `${X_API_BASE}/${queryId}/HomeLatestTimeline`;
 
+  // 从数据库获取最新的 cookies
+  const cookies = await getXCookies();
+
   const headers = {
-    'authorization': `Bearer ${X_BEARER_TOKEN}`,
-    'x-csrf-token': xCookies.ct0,
+    'authorization': `Bearer ${cookies.bearer_token}`,
+    'x-csrf-token': cookies.ct0,
     'x-twitter-active-user': 'yes',
     'x-twitter-auth-type': 'OAuth2Session',
     'x-twitter-client-language': 'en',
-    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'accept': '*/*',
     'accept-language': 'en-US,en;q=0.9',

@@ -97,4 +97,103 @@ export async function getReadStats() {
   }
 }
 
+/**
+ * 获取设置值
+ * @param {string} key - 设置键名
+ * @param {string} defaultValue - 默认值
+ * @returns {Promise<string>}
+ */
+export async function getSetting(key, defaultValue = '') {
+  if (!supabase) return defaultValue;
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', key)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // 未找到，返回默认值
+        return defaultValue;
+      }
+      console.error('Error getting setting:', error);
+      return defaultValue;
+    }
+
+    return data?.value || defaultValue;
+  } catch (err) {
+    console.error('Error in getSetting:', err);
+    return defaultValue;
+  }
+}
+
+/**
+ * 更新设置值
+ * @param {string} key - 设置键名
+ * @param {string} value - 设置值
+ * @returns {Promise<boolean>}
+ */
+export async function setSetting(key, value) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('settings')
+      .upsert(
+        {
+          key,
+          value,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: 'key'
+        }
+      );
+
+    if (error) {
+      console.error('Error setting setting:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error in setSetting:', err);
+    return false;
+  }
+}
+
+/**
+ * 获取所有设置
+ * @returns {Promise<Object>}
+ */
+export async function getAllSettings() {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('key, value, description, updated_at')
+      .order('key');
+
+    if (error) {
+      console.error('Error getting all settings:', error);
+      return {};
+    }
+
+    // 转换为对象
+    const settings = {};
+    data.forEach(item => {
+      settings[item.key] = {
+        value: item.value,
+        description: item.description,
+        updatedAt: item.updated_at
+      };
+    });
+
+    return settings;
+  } catch (err) {
+    console.error('Error in getAllSettings:', err);
+    return {};
+  }
+}
+
 export default supabase;

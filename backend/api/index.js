@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import tweetsRouter from '../src/routes/tweets.js';
+import settingsRouter from '../src/routes/settings.js';
 
 dotenv.config();
 
@@ -17,6 +18,9 @@ app.get('/api/health', (req, res) => {
 
 // 推文路由
 app.use('/api/tweets', tweetsRouter);
+
+// 设置路由
+app.use('/api/settings', settingsRouter);
 
 // Vercel Serverless Function 导出
 export default app;

@@ -16,7 +16,10 @@ try {
     db = {
       isPostRead: async () => false,
       markPostAsRead: async () => {},
-      getReadStats: async () => ({ read: 0, unread: 0 })
+      getReadStats: async () => ({ read: 0, unread: 0 }),
+      getSetting: async (_, defaultValue) => defaultValue,
+      setSetting: async () => false,
+      getAllSettings: async () => ({})
     };
   }
 } catch (err) {
@@ -25,14 +28,20 @@ try {
   db = {
     isPostRead: async () => false,
     markPostAsRead: async () => {},
-    getReadStats: async () => ({ read: 0, unread: 0 })
+    getReadStats: async () => ({ read: 0, unread: 0 }),
+    getSetting: async (_, defaultValue) => defaultValue,
+    setSetting: async () => false,
+    getAllSettings: async () => ({})
   };
 }
 
 export const {
   isPostRead,
   markPostAsRead,
-  getReadStats
+  getReadStats,
+  getSetting,
+  setSetting,
+  getAllSettings
 } = db;
 
 export default db;
