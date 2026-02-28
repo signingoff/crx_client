@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const API_BASE = 'http://localhost:3000/api'
+// 根据环境选择 API 地址
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api'
 
 /**
  * 获取 For You 页面的推文

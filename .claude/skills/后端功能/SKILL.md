@@ -221,10 +221,12 @@ function isJapaneseText(text) {
 ```javascript
 return tweets.filter(tweet => {
   const isJapanese = isJapaneseText(tweet.text);
-  const isRendered = isPostRendered(tweet.id);
-  return !isJapanese && !isRendered;
+  const isRead = isPostRead(tweet.id);
+  return !isJapanese && !isRead;  // 只返回未读推文
 });
 ```
+
+**说明**: 后端只返回未读推文（`is_read = 0`）。用户三连击标记为已读后，推文会从列表中消失。
 
 ### 3. 数据格式化
 
@@ -327,80 +329,45 @@ db.exec(`
 #### 数据库操作函数
 
 ```javascript
-// 检查推文是否已加载
-export function isPostLoaded(tweetId) {
-  const stmt = db.prepare('SELECT 1 FROM read_posts WHERE tweet_id = ?');
-  return !!stmt.get(tweetId);
+// 检查推文是否已读
+export async function isPostRead(tweetId) {
+  const { data, error } = await supabase
+    .from('read_posts')
+    .select('is_read')
+    .eq('tweet_id', tweetId)
+    .single();
+
+  return !!data?.is_read;
 }
 
-// 批量标记为已加载（is_read=0）
-export function markPostsAsLoaded(tweetIds) {
-  if (!tweetIds || tweetIds.length === 0) return;
+// 标记单条为已读/未读（不存在则插入）
+export async function markPostAsRead(tweetId, isRead = true) {
+  const { error } = await supabase
+    .from('read_posts')
+    .upsert(
+      { tweet_id: tweetId, is_read: isRead },
+      { onConflict: 'tweet_id' }
+    );
 
-  const insert = db.prepare('INSERT OR IGNORE INTO read_posts (tweet_id, is_read) VALUES (?, 0)');
-  const transaction = db.transaction((ids) => {
-    for (const id of ids) {
-      insert.run(id);
-    }
-  });
-
-  transaction(tweetIds);
-}
-
-// 标记单条为已读/未读
-export function markPostAsRead(tweetId, isRead = true) {
-  try {
-    const stmt = db.prepare('UPDATE read_posts SET is_read = ? WHERE tweet_id = ?');
-    stmt.run(isRead ? 1 : 0, tweetId);
-  } catch (err) {
-    console.error('Error marking post as read:', err);
-  }
+  if (error) console.error('Error marking post as read:', error);
 }
 
 // 获取统计
-export function getReadStats() {
-  const totalStmt = db.prepare('SELECT COUNT(*) as count FROM read_posts');
-  const readStmt = db.prepare('SELECT COUNT(*) as count FROM read_posts WHERE is_read = 1');
-  const unreadStmt = db.prepare('SELECT COUNT(*) as count FROM read_posts WHERE is_read = 0');
+export async function getReadStats() {
+  const { count: total } = await supabase
+    .from('read_posts')
+    .select('*', { count: 'exact', head: true });
+
+  const { count: read } = await supabase
+    .from('read_posts')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_read', true);
 
   return {
-    total: totalStmt.get()?.count || 0,
-    read: readStmt.get()?.count || 0,
-    unread: unreadStmt.get()?.count || 0
+    total: total || 0,
+    read: read || 0,
+    unread: (total || 0) - (read || 0)
   };
-}
-
-// 兼容旧函数名
-export function isPostRendered(tweetId) {
-  return isPostLoaded(tweetId);
-}
-
-export function markPostsAsRendered(tweetIds) {
-  return markPostsAsLoaded(tweetIds);
-}
-
-export function getRenderedPostCount() {
-  const stats = getReadStats();
-  return stats.total;
-}
-```
-
-#### 数据迁移
-
-```javascript
-// 从旧表迁移数据
-try {
-  const oldTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='rendered_posts'").get();
-  if (oldTableExists) {
-    db.exec(`
-      INSERT OR IGNORE INTO read_posts (tweet_id, is_read, created_at)
-      SELECT tweet_id, 1, created_at FROM rendered_posts
-    `);
-    db.exec(`DROP TABLE rendered_posts`);
-    console.log('Migrated data from rendered_posts to read_posts');
-  }
-} catch (err) {
-  console.log('No old table to migrate');
 }
 ```
 
@@ -412,12 +379,13 @@ try {
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | /api/tweets/for-you | 获取推文列表 |
+| GET | /api/tweets/for-you | 获取推文列表（未读） |
 | GET | /api/tweets/health | 健康检查 |
-| POST | /api/tweets/mark-rendered | 标记推文为已加载 |
-| GET | /api/tweets/rendered-count | 获取已加载数量 |
 | POST | /api/tweets/mark-read | 标记已读/未读 |
 | GET | /api/tweets/read-stats | 获取已读统计 |
+| GET | /api/tweets/config | 获取 Query ID 配置 |
+| POST | /api/tweets/config/query-id | 更新 Query ID |
+| POST | /api/tweets/config/fetch-query-id | 自动获取 Query ID |
 
 #### 获取推文
 
@@ -610,3 +578,113 @@ node -e "const db = require('better-sqlite3')('./data/posts.db'); console.log(db
 ### 日志输出
 - 错误日志输出到控制台
 - 可使用 `DEBUG=*` 开启详细日志
+
+## 单元测试
+
+### 测试框架
+
+使用 **Vitest** 作为测试框架，支持 ESM 和异步测试。
+
+**依赖安装：**
+```bash
+cd backend
+npm install --save-dev vitest @vitest/ui supertest
+```
+
+### 测试命令
+
+```bash
+# 运行所有测试（一次性）
+npm run test
+
+# 监听模式（开发时使用）
+npm run test:watch
+
+# UI 模式（可视化界面）
+npm run test:ui
+
+# 生成覆盖率报告
+npm run test:coverage
+```
+
+### 测试文件结构
+
+```
+backend/
+├── tests/
+│   ├── setup.js              # 测试环境配置
+│   ├── xService.test.js      # X API 服务测试
+│   ├── queryConfig.test.js   # 配置管理测试
+│   └── tweets.test.js        # API 路由测试
+├── vitest.config.js          # Vitest 配置文件
+└── package.json
+```
+
+### 测试示例
+
+**模拟 API 调用：**
+```javascript
+import { describe, it, expect, vi } from 'vitest'
+import { getForYouTweets } from '../src/services/xService.js'
+
+// 模拟 axios
+vi.mock('axios', () => ({
+  default: { get: vi.fn() }
+}))
+
+import axios from 'axios'
+
+describe('getForYouTweets', () => {
+  it('should fetch and filter tweets', async () => {
+    axios.get.mockResolvedValue({
+      data: { /* mock response */ }
+    })
+
+    const tweets = await getForYouTweets(10)
+
+    expect(tweets).toHaveLength(/* expected count */)
+  })
+})
+```
+
+**测试 API 路由：**
+```javascript
+import request from 'supertest'
+import express from 'express'
+import tweetsRouter from '../src/routes/tweets.js'
+
+const app = express()
+app.use('/api/tweets', tweetsRouter)
+
+describe('GET /api/tweets/for-you', () => {
+  it('should return tweets', async () => {
+    const response = await request(app)
+      .get('/api/tweets/for-you')
+      .expect(200)
+
+    expect(response.body.success).toBe(true)
+  })
+})
+```
+
+### 测试覆盖范围
+
+| 模块 | 测试内容 |
+|------|---------|
+| `xService.js` | API 调用、日语过滤、已读过滤、错误处理 |
+| `queryConfig.js` | 配置读取、更新、保存 |
+| `tweets.js` | 路由响应、参数验证、错误处理 |
+
+### 模拟策略
+
+1. **外部 API** - 使用 `vi.mock()` 模拟 axios
+2. **数据库** - 模拟数据库操作函数
+3. **环境变量** - 在 `setup.js` 中设置测试环境
+4. **文件系统** - 使用临时文件进行测试
+
+### 最佳实践
+
+- 每个测试独立运行，使用 `beforeEach` 清理状态
+- 使用 `vi.resetModules()` 重置 ESM 模块缓存
+- 测试文件名以 `.test.js` 结尾
+- 使用 `describe` 和 `it` 组织测试结构

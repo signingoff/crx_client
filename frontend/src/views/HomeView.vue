@@ -3,6 +3,9 @@
     <header class="header">
       <h1>🔥 X For You</h1>
       <div class="header-actions">
+        <router-link to="/embed" class="nav-link" title="嵌入推文">
+          🔗
+        </router-link>
         <button class="settings-btn" @click="openSettings" title="设置">
           ⚙️
         </button>
@@ -198,6 +201,21 @@ h1 {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.nav-link {
+  text-decoration: none;
+  font-size: 18px;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-link:hover {
+  background: #e1e8ed;
 }
 
 .settings-btn {

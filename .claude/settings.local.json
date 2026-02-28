@@ -28,7 +28,8 @@
       "Bash(git push:*)",
       "Bash(rm:*)",
       "Bash(echo:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(vercel:*)"
     ]
   }
 }

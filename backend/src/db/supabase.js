@@ -12,60 +12,6 @@ if (supabaseUrl && supabaseKey) {
 }
 
 /**
- * 检查推文是否已加载
- * @param {string} tweetId - 推文ID
- * @returns {Promise<boolean>}
- */
-export async function isPostLoaded(tweetId) {
-  if (!supabase) return false;
-  try {
-    const { data, error } = await supabase
-      .from('read_posts')
-      .select('tweet_id')
-      .eq('tweet_id', tweetId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = 未找到
-      console.error('Error checking post loaded:', error);
-    }
-
-    return !!data;
-  } catch (err) {
-    console.error('Error in isPostLoaded:', err);
-    return false;
-  }
-}
-
-/**
- * 批量标记推文为已加载
- * @param {string[]} tweetIds - 推文ID数组
- */
-export async function markPostsAsLoaded(tweetIds) {
-  if (!supabase || !tweetIds || tweetIds.length === 0) return;
-
-  try {
-    const rows = tweetIds.map(id => ({
-      tweet_id: id,
-      is_read: false,
-      created_at: new Date().toISOString()
-    }));
-
-    const { error } = await supabase
-      .from('read_posts')
-      .upsert(rows, {
-        onConflict: 'tweet_id',
-        ignoreDuplicates: true
-      });
-
-    if (error) {
-      console.error('Error marking posts as loaded:', error);
-    }
-  } catch (err) {
-    console.error('Error in markPostsAsLoaded:', err);
-  }
-}
-
-/**
  * 标记单条推文为已读/未读
  * @param {string} tweetId - 推文ID
  * @param {boolean} isRead - 是否已读
@@ -75,14 +21,46 @@ export async function markPostAsRead(tweetId, isRead = true) {
   try {
     const { error } = await supabase
       .from('read_posts')
-      .update({ is_read: isRead })
-      .eq('tweet_id', tweetId);
+      .upsert(
+        {
+          tweet_id: tweetId,
+          is_read: isRead
+        },
+        {
+          onConflict: 'tweet_id'
+        }
+      );
 
     if (error) {
       console.error('Error marking post as read:', error);
     }
   } catch (err) {
     console.error('Error in markPostAsRead:', err);
+  }
+}
+
+/**
+ * 检查推文是否已读
+ * @param {string} tweetId - 推文ID
+ * @returns {Promise<boolean>}
+ */
+export async function isPostRead(tweetId) {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase
+      .from('read_posts')
+      .select('is_read')
+      .eq('tweet_id', tweetId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = 未找到
+      console.error('Error checking post read status:', error);
+    }
+
+    return !!data?.is_read;
+  } catch (err) {
+    console.error('Error in isPostRead:', err);
+    return false;
   }
 }
 

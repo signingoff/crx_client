@@ -6,7 +6,11 @@
     "dev": "node src/index.js > backend.log 2>&1",
     "start": "node src/index.js > backend.log 2>&1",
     "dev:fetch": "node scripts/dev-with-fetch.js",
-    "fetch:query-id": "node scripts/fetch-query-id.js"
+    "fetch:query-id": "node scripts/fetch-query-id.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -16,6 +20,9 @@
     "express": "^4.18.2"
   },
   "devDependencies": {
-    "puppeteer-core": "^24.37.5"
+    "@vitest/ui": "^4.0.18",
+    "puppeteer-core": "^24.37.5",
+    "supertest": "^7.2.2",
+    "vitest": "^4.0.18"
   }
 }

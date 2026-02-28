@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { xCookies } from '../config/auth.js';
-import { isPostLoaded } from '../db/index.js';
+import { isPostRead } from '../db/index.js';
 import { getConfig } from '../config/queryConfig.js';
 
 const X_API_BASE = 'https://x.com/i/api/graphql';
@@ -86,14 +86,14 @@ export async function getForYouTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语推文和已加载的推文
+    // 过滤掉日语推文，只保留已读的推文
     const filteredTweets = [];
     for (const tweet of tweets) {
       const isJapanese = isJapaneseText(tweet.text);
       if (isJapanese) continue;
 
-      const loaded = await isPostLoaded(tweet.id);
-      if (!loaded) {
+      const isRead = await isPostRead(tweet.id);
+      if (!isRead) {
         filteredTweets.push(tweet);
       }
     }
@@ -172,14 +172,14 @@ export async function getFollowingTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语推文和已加载的推文
+    // 过滤掉日语推文，只保留已读的推文
     const filteredTweets = [];
     for (const tweet of tweets) {
       const isJapanese = isJapaneseText(tweet.text);
       if (isJapanese) continue;
 
-      const loaded = await isPostLoaded(tweet.id);
-      if (!loaded) {
+      const isRead = await isPostRead(tweet.id);
+      if (!isRead) {
         filteredTweets.push(tweet);
       }
     }
@@ -283,10 +283,18 @@ function formatTweet(tweetData) {
   // 判断是否为长推文：有 noteTweetText 或者文本超过 280 字符
   const isLongText = !!noteTweetText || fullText.length > 280;
 
+  // 提取文章信息（X Articles / Twitter Articles）
+  // 先从 tweetData.article 查找，再从 entities.urls 中的文章链接提取
+  let article = extractArticle(tweetData);
+  if (!article) {
+    article = extractArticleFromUrls(tweet.entities, fullText);
+  }
+
   return {
     id: tweet.id_str,
     text: fullText,
     isLongText,
+    article,
     createdAt: tweet.created_at,
     author: {
       id: authorId,
@@ -308,6 +316,110 @@ function formatTweet(tweetData) {
     media: extractMedia(tweet),
     entities: tweet.entities
   };
+}
+
+/**
+ * 提取文章信息（X Articles / Twitter Articles）
+ * @param {Object} tweetData - 原始推文数据
+ * @returns {Object|null} 文章信息
+ */
+function extractArticle(tweetData) {
+  // 文章可能嵌套在多个位置
+  const articleData = tweetData.article?.article_results?.result
+    || tweetData.twitter_article?.twitter_article_results?.result
+    || tweetData.note_tweet?.note_tweet_results?.result?.article;
+
+  if (!articleData) return null;
+
+  // 提取文章标题
+  const title = articleData.title
+    || articleData.headline
+    || articleData.preview_text
+    || '文章';
+
+  // 提取文章链接
+  const articleId = articleData.id_str || articleData.id;
+  let url = null;
+
+  if (articleId) {
+    // 构建文章链接
+    url = `https://x.com/i/articles/${articleId}`;
+  }
+
+  // 如果有 cover media，提取封面图
+  const coverMedia = articleData.cover_media?.media_results?.result?.media_url_https
+    || articleData.cover_media?.media_url_https;
+
+  return {
+    id: articleId,
+    title: title,
+    url: url,
+    coverImage: coverMedia,
+    description: articleData.preview_text || null
+  };
+}
+
+/**
+ * 从 entities.urls 中提取文章链接信息
+ * X.com 文章链接格式: x.com/i/article/123456789
+ * @param {Object} entities - 推文 entities
+ * @param {string} fullText - 推文完整文本
+ * @returns {Object|null} 文章信息
+ */
+function extractArticleFromUrls(entities, fullText) {
+  if (!entities?.urls || entities.urls.length === 0) return null;
+
+  for (const url of entities.urls) {
+    const expandedUrl = url.expanded_url || '';
+    // 匹配 x.com/i/article/ 或 twitter.com/i/article/ 格式的链接
+    const articleMatch = expandedUrl.match(/(?:x\.com|twitter\.com)\/i\/(?:article|articles)\/(\d+)/);
+    if (articleMatch) {
+      const articleId = articleMatch[1];
+      // 从 display_url 或 expanded_url 提取文章标题（如果可能）
+      // 或使用链接中的文字作为标题
+      const displayUrl = url.display_url || '';
+      // 尝试从 display_url 提取标题（x.com 有时会显示文章标题）
+      let title = displayUrl;
+
+      // 如果 display_url 只是短链接形式（如 x.com/i/article/2027…），尝试从文本中提取
+      if (title.includes('…') || title.includes('x.com/i/article')) {
+        // 尝试多种方式查找链接在文本中的位置
+        // url.url 可能是 t.co 短链接，而 fullText 中可能是 expanded_url 或 display_url
+        let urlIndex = fullText.indexOf(url.url);
+
+        // 如果没找到短链接，尝试找 expanded_url
+        if (urlIndex === -1 && url.expanded_url) {
+          urlIndex = fullText.indexOf(url.expanded_url);
+        }
+
+        // 还是没找到，尝试找 display_url
+        if (urlIndex === -1 && url.display_url) {
+          urlIndex = fullText.indexOf(url.display_url);
+        }
+
+        if (urlIndex !== -1) {
+          const afterUrl = fullText.slice(urlIndex + (url.expanded_url || url.url).length).trim();
+          if (afterUrl && afterUrl.length > 0 && afterUrl.length < 200) {
+            title = afterUrl.split('\n')[0].slice(0, 100);
+          } else {
+            title = 'X 文章';
+          }
+        } else {
+          title = 'X 文章';
+        }
+      }
+
+      return {
+        id: articleId,
+        title: title,
+        url: expandedUrl,
+        coverImage: null,
+        description: null
+      };
+    }
+  }
+
+  return null;
 }
 
 /**

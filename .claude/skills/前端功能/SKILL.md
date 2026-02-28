@@ -7,6 +7,7 @@ description: X For You 前端功能说明 - Vue 3 + Vite 技术栈
 
 ## 技术栈
 - Vue 3 (Composition API)
+- Vue Router 4
 - Vite
 - Axios
 
@@ -19,9 +20,14 @@ frontend/
 │   │   └── tweets.js          # API 请求封装
 │   ├── components/
 │   │   ├── TweetCard.vue      # 单条推文卡片组件
-│   │   └── TweetList.vue      # 推文列表容器
+│   │   ├── TweetList.vue      # 推文列表容器
+│   │   ├── TwitterEmbed.vue   # Twitter 嵌入组件
+│   │   └── QueryIdSettings.vue # Query ID 设置面板
 │   ├── views/
-│   │   └── HomeView.vue       # 主页面视图
+│   │   ├── HomeView.vue       # 主页面视图
+│   │   └── EmbedView.vue      # 嵌入推文页面
+│   ├── router/
+│   │   └── index.js           # 路由配置
 │   ├── App.vue                # 根组件
 │   └── main.js                # 入口文件
 ├── index.html
@@ -106,12 +112,13 @@ frontend/
 **3. 推文内容处理**
 
 ```javascript
-// formatText 函数 - 高亮话题标签和@用户名
+// formatText 函数 - 高亮话题标签、@用户名和URL链接
 function formatText(text) {
   if (!text) return ''
   return text
     .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
     .replace(/@(\w+)/g, '<a href="https://x.com/$1" target="_blank" class="mention-link" onclick="event.stopPropagation()">@$1</a>')
+    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="url-link" onclick="event.stopPropagation()">$1</a>')
     .replace(/\n/g, '<br>')
 }
 ```
@@ -545,13 +552,13 @@ function formatNumber(num) {
 
 ## 交互功能
 
-### 三连击切换已读/未读
+### 三连击标记已读
 
 - **触发**: 连续单击 TweetCard.vue 卡片 3 次（500ms 内）
-- **效果**: 切换左上角绿色 ✓ 已读标记（显示/隐藏）
-- **API**: 调用 `POST /api/tweets/mark-read` (isRead: true/false)
-- **数据库**: 更新 SQLite `read_posts.is_read` (0/1)
-- **注意**: 不改变背景颜色
+- **效果**: 标记推文为已读，卡片从列表中消失
+- **API**: 调用 `POST /api/tweets/mark-read` (isRead: true)
+- **数据库**: 更新 `read_posts.is_read = 1`
+- **过滤逻辑**: 后端只返回未读推文（is_read = 0），已读推文不再显示
 
 ### X.com 跳转
 
@@ -631,6 +638,50 @@ function formatNumber(num) {
   object-fit: cover;
 }
 ```
+
+### 8. Twitter 嵌入组件
+
+**文件**: `frontend/src/components/TwitterEmbed.vue`
+
+使用 Twitter 官方嵌入脚本显示单条推文。
+
+#### Props
+| Prop | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tweetId | String | 是 | 推文 ID |
+| options | Object | 否 | 配置选项 |
+
+#### Options 配置
+```javascript
+{
+  theme: 'light',        // 'light' 或 'dark'
+  cards: 'visible',      // 'visible' 或 'hidden'
+  conversation: 'none',  // 'none' 或 'all'
+  align: 'center',       // 'left', 'center', 'right'
+  width: '100%'
+}
+```
+
+#### 使用示例
+```vue
+<template>
+  <TwitterEmbed tweet-id="123456789" :options="{ theme: 'dark' }" />
+</template>
+```
+
+### 9. 嵌入推文页面
+
+**文件**: `frontend/src/views/EmbedView.vue`
+
+**路径**: `/embed`
+
+支持输入推文链接或 ID，使用 Twitter 官方嵌入组件显示。
+
+**功能**:
+- 输入推文链接（`https://x.com/.../status/123...`）或纯 ID
+- 支持浅色/深色主题切换
+- 可同时显示多条推文进行对比
+- 响应式网格布局
 
 ### 3. 滚动条样式不生效
 **注意**: 滚动条样式现在定义在 `App.vue` 全局，而不是 `.content` 上

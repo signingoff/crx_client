@@ -1,9 +1,9 @@
 <template>
-  <HomeView />
+  <router-view />
 </template>
 
 <script setup>
-import HomeView from './views/HomeView.vue'
+// 路由视图自动渲染匹配的组件
 </script>
 
 <style>

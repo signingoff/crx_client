@@ -116,6 +116,97 @@ async function fetchJsFile(url) {
 }
 
 /**
+ * 从 HTML 中提取 JS 文件 URL
+ */
+function extractJsUrls(html) {
+  const jsUrls = [];
+  // 匹配 script src 属性
+  const scriptRegex = /<script[^>]+src=["']([^"']+)["']/gi;
+  let match;
+  while ((match = scriptRegex.exec(html)) !== null) {
+    const url = match[1];
+    // 只关注主 bundle 文件（通常包含 GraphQL 配置）
+    if (url.includes('main.') || url.includes('bundle.') || url.includes('app.')) {
+      jsUrls.push(url.startsWith('http') ? url : `https://x.com${url}`);
+    }
+  }
+  return jsUrls;
+}
+
+/**
+ * 从 JS 内容中提取 Query ID
+ * X.com 的 Query ID 通常以特定格式存储在 JS 中
+ */
+function extractQueryIdsFromJs(jsContent) {
+  const results = {
+    homeTimeline: [],
+    homeLatestTimeline: []
+  };
+
+  // 模式1: 查找 HomeTimeline 相关的 Query ID
+  // 格式通常是: {queryId:"xxxxx",operationName:"HomeTimeline"}
+  const homeTimelineRegex = /queryId[^}]*["']([A-Za-z0-9_-]{22})["'][^}]*operationName[^}]*["']HomeTimeline["']/gi;
+  let match;
+  while ((match = homeTimelineRegex.exec(jsContent)) !== null) {
+    results.homeTimeline.push(match[1]);
+  }
+
+  // 反向顺序也尝试
+  const homeTimelineRegex2 = /operationName[^}]*["']HomeTimeline["'][^}]*queryId[^}]*["']([A-Za-z0-9_-]{22})["']/gi;
+  while ((match = homeTimelineRegex2.exec(jsContent)) !== null) {
+    results.homeTimeline.push(match[1]);
+  }
+
+  // 模式2: 查找 HomeLatestTimeline 相关的 Query ID
+  const homeLatestRegex = /queryId[^}]*["']([A-Za-z0-9_-]{22})["'][^}]*operationName[^}]*["']HomeLatestTimeline["']/gi;
+  while ((match = homeLatestRegex.exec(jsContent)) !== null) {
+    results.homeLatestTimeline.push(match[1]);
+  }
+
+  const homeLatestRegex2 = /operationName[^}]*["']HomeLatestTimeline["'][^}]*queryId[^}]*["']([A-Za-z0-9_-]{22})["']/gi;
+  while ((match = homeLatestRegex2.exec(jsContent)) !== null) {
+    results.homeLatestTimeline.push(match[1]);
+  }
+
+  // 去重
+  results.homeTimeline = [...new Set(results.homeTimeline)];
+  results.homeLatestTimeline = [...new Set(results.homeLatestTimeline)];
+
+  return results;
+}
+
+/**
+ * 从页面加载的 JS 文件中提取 Query ID
+ */
+async function extractFromJsFiles(html) {
+  const jsUrls = extractJsUrls(html);
+
+  const allResults = {
+    homeTimeline: [],
+    homeLatestTimeline: []
+  };
+
+  for (const url of jsUrls.slice(0, 3)) {
+    try {
+      const jsContent = await fetchJsFile(url);
+      if (jsContent) {
+        const results = extractQueryIdsFromJs(jsContent);
+        allResults.homeTimeline.push(...results.homeTimeline);
+        allResults.homeLatestTimeline.push(...results.homeLatestTimeline);
+      }
+    } catch (err) {
+      // 忽略 JS 加载错误
+    }
+  }
+
+  // 去重
+  allResults.homeTimeline = [...new Set(allResults.homeTimeline)];
+  allResults.homeLatestTimeline = [...new Set(allResults.homeLatestTimeline)];
+
+  return allResults;
+}
+
+/**
  * 从 x.com 主页获取 Query ID
  */
 async function extractFromHomePage() {
@@ -140,18 +231,76 @@ async function extractFromHomePage() {
 }
 
 /**
+ * 从 x.com Following 页面获取 Query ID
+ * HomeLatestTimeline 的 Query ID 通常在 Following 页面加载
+ */
+async function extractFromFollowingPage() {
+  const headers = {
+    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language': 'en-US,en;q=0.9',
+    'referer': 'https://x.com/home'
+  };
+
+  try {
+    // 尝试访问 Following 页面
+    // X.com 使用 URL 参数 filter=following 来显示 Following 时间线
+    const urls = [
+      'https://x.com/home?filter=following',
+      'https://x.com/home?following=true'
+    ];
+
+    for (const url of urls) {
+      try {
+        console.log(`  Trying to fetch Following page: ${url}`);
+        const response = await axios.get(url, {
+          headers,
+          timeout: 15000,
+          validateStatus: (status) => status < 400 || status === 404
+        });
+
+        if (response.status === 200) {
+          const results = extractQueryIdsFromHtml(response.data);
+          if (results.homeLatestTimeline.length > 0) {
+            console.log(`  ✅ Found HomeLatestTimeline candidates from ${url}`);
+            return results;
+          }
+        }
+      } catch (err) {
+        console.log(`  ⚠️ Failed to fetch ${url}: ${err.message}`);
+      }
+    }
+
+    return { homeTimeline: [], homeLatestTimeline: [] };
+  } catch (error) {
+    console.error('Failed to fetch following page:', error.message);
+    return { homeTimeline: [], homeLatestTimeline: [] };
+  }
+}
+
+/**
  * 备选方案：使用已知有效的 Query ID 列表进行测试
  */
 async function findWorkingQueryId(operation, knownIds) {
   for (const queryId of knownIds) {
-    console.log(`Testing ${operation} with Query ID: ${queryId}`);
     const isValid = await testQueryId(queryId, operation);
     if (isValid === true) {
-      console.log(`✅ Found working Query ID for ${operation}: ${queryId}`);
+      console.log(`  ✅ Found working Query ID for ${operation}: ${queryId}`);
       return queryId;
     }
   }
   return null;
+}
+
+/**
+ * 合并两个候选结果，去重
+ */
+function mergeCandidates(c1, c2) {
+  return {
+    homeTimeline: [...new Set([...c1.homeTimeline, ...c2.homeTimeline])],
+    homeLatestTimeline: [...new Set([...c1.homeLatestTimeline, ...c2.homeLatestTimeline])]
+  };
 }
 
 /**
@@ -161,16 +310,33 @@ export async function fetchQueryIdsFromX() {
   console.log('🔍 Auto-fetching Query IDs from x.com...');
 
   try {
-    // 步骤1: 从主页提取候选 Query ID
-    const candidates = await extractFromHomePage();
-    console.log('Candidates from homepage:', candidates);
+    // 步骤1: 从主页和 Following 页面提取候选 Query ID
+    const homeCandidates = await extractFromHomePage();
+    const followingCandidates = await extractFromFollowingPage();
+
+    // 合并候选结果
+    let candidates = mergeCandidates(homeCandidates, followingCandidates);
+
+    // 步骤2: 从 JS 文件中提取 Query ID
+    const homeHtml = await axios.get(X_HOME_URL, {
+      headers: {
+        'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 30000
+    }).then(r => r.data).catch(() => '');
+
+    if (homeHtml) {
+      const jsCandidates = await extractFromJsFiles(homeHtml);
+      candidates = mergeCandidates(candidates, jsCandidates);
+    }
 
     const results = {
       homeTimeline: null,
       homeLatestTimeline: null
     };
 
-    // 步骤2: 测试主页提取的候选 ID
+    // 步骤3: 测试提取的候选 ID
     if (candidates.homeTimeline.length > 0) {
       results.homeTimeline = await findWorkingQueryId('HomeTimeline', candidates.homeTimeline);
     }
@@ -178,35 +344,7 @@ export async function fetchQueryIdsFromX() {
       results.homeLatestTimeline = await findWorkingQueryId('HomeLatestTimeline', candidates.homeLatestTimeline);
     }
 
-    // 步骤3: 如果主页方法失败，使用备选方案
-    // 这些是社区常用的 Query ID，可以尝试
-    const fallbackIds = {
-      homeTimeline: [
-        'MpnCeE0hy8m5eWobPx8euw',
-        'tQNjW9mIg5LF7lLdkXLr1A',
-        '3snsi3LfCylgX6jG6vZlA',
-        'HG8YWR0_4Dn6V7YwL0F5Q',
-        'L7ZfGmLEqCMT5u_IQlZFMA'
-      ],
-      homeLatestTimeline: [
-        'MpnCeE0hy8m5eWobPx8euw',
-        'tQNjW9mIg5LF7lLdkXLr1A',
-        '3snsi3LfCylgX6jG6vZlA',
-        'HG8YWR0_4Dn6V7YwL0F5Q'
-      ]
-    };
-
-    if (!results.homeTimeline) {
-      console.log('Trying fallback HomeTimeline IDs...');
-      results.homeTimeline = await findWorkingQueryId('HomeTimeline', fallbackIds.homeTimeline);
-    }
-
-    if (!results.homeLatestTimeline) {
-      console.log('Trying fallback HomeLatestTimeline IDs...');
-      results.homeLatestTimeline = await findWorkingQueryId('HomeLatestTimeline', fallbackIds.homeLatestTimeline);
-    }
-
-    // 步骤4: 返回结果
+    // 返回结果
     if (!results.homeTimeline && !results.homeLatestTimeline) {
       throw new Error('无法找到有效的 Query ID。请检查 Cookie 是否过期，或手动输入 Query ID。');
     }

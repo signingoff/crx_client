@@ -50,7 +50,7 @@
     </div>
 
     <div class="tweet-content">
-      <p v-html="formatText(displayText)"></p>
+      <p v-html="formatText(displayText, props.tweet.entities)"></p>
       <button
         v-if="tweet.isLongText"
         class="show-more-btn"
@@ -58,6 +58,20 @@
       >
         {{ isExpanded ? 'Show less' : 'Show more' }}
       </button>
+    </div>
+
+    <!-- 文章卡片 -->
+    <div v-if="props.tweet.article" class="article-card" @click.stop="openArticle">
+      <div v-if="props.tweet.article.coverImage" class="article-cover">
+        <img :src="props.tweet.article.coverImage" alt="Article cover" loading="lazy" />
+      </div>
+      <div class="article-content">
+        <h3 class="article-title">{{ props.tweet.article.title }}</h3>
+        <p v-if="props.tweet.article.description" class="article-description">
+          {{ props.tweet.article.description }}
+        </p>
+        <span class="article-link">阅读文章 →</span>
+      </div>
     </div>
 
     <!-- 媒体内容：只显示图片，不显示视频/GIF -->
@@ -149,8 +163,7 @@ const parsedRetweet = computed(() => {
 
 // 显示的作者（转发时显示原推文作者）
 const displayAuthor = computed(() => {
-  // 调试输出
-  console.log('tweet.author:', props.tweet.author)
+
   // 非转发推文，直接返回原始 author
   if (!isRetweet.value) {
     return props.tweet.author
@@ -210,6 +223,13 @@ function toggleExpanded() {
 
 function openTweetLink() {
   window.open(`https://x.com/i/web/status/${props.tweet.id}`, '_blank')
+}
+
+// 打开文章链接
+function openArticle() {
+  if (props.tweet.article?.url) {
+    window.open(props.tweet.article.url, '_blank')
+  }
 }
 
 // 三连击切换已读/未读状态
@@ -308,13 +328,76 @@ function formatJoinDate(dateString) {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
-function formatText(text) {
+/**
+ * 解码 HTML 实体
+ */
+function decodeHtmlEntities(text) {
+  const entities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' '
+  }
+  return text.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&nbsp;/g, match => entities[match] || match)
+}
+
+/**
+ * 格式化推文文本
+ * 1. 解码 HTML 实体
+ * 2. 处理 @提及 和 URL（优先使用 entities 数据）
+ * 3. 高亮话题标签
+ */
+function formatText(text, entities = null) {
   if (!text) return ''
-  // 高亮话题标签和@用户名，@用户名添加链接
-  return text
-    .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
-    .replace(/@(\w+)/g, '<a href="https://x.com/$1" target="_blank" class="mention-link" onclick="event.stopPropagation()">@$1</a>')
-    .replace(/\n/g, '<br>')
+
+  // 解码 HTML 实体
+  let formattedText = decodeHtmlEntities(text)
+
+  // 如果有 entities 数据，使用它来准确处理提及和链接
+  if (entities) {
+    // 处理 URLs
+    if (entities.urls && entities.urls.length > 0) {
+      for (const url of entities.urls) {
+        const displayUrl = url.display_url || url.expanded_url || url.url
+        formattedText = formattedText.replace(
+          url.url,
+          `<a href="${url.expanded_url || url.url}" target="_blank" class="url-link" onclick="event.stopPropagation()">${displayUrl}</a>`
+        )
+      }
+    }
+
+    // 处理用户提及
+    if (entities.user_mentions && entities.user_mentions.length > 0) {
+      for (const mention of entities.user_mentions) {
+        const screenName = mention.screen_name
+        formattedText = formattedText.replace(
+          new RegExp(`@${screenName}`, 'g'),
+          `<a href="https://x.com/${screenName}" target="_blank" class="mention-link" onclick="event.stopPropagation()">@${screenName}</a>`
+        )
+      }
+    }
+
+    // 处理话题标签
+    if (entities.hashtags && entities.hashtags.length > 0) {
+      for (const hashtag of entities.hashtags) {
+        const tag = hashtag.text
+        formattedText = formattedText.replace(
+          new RegExp(`#${tag}`, 'g'),
+          `<span class="hashtag">#${tag}</span>`
+        )
+      }
+    }
+  } else {
+    // 没有 entities 时的兜底处理
+    formattedText = formattedText
+      .replace(/@(\w+)/g, '<a href="https://x.com/$1" target="_blank" class="mention-link" onclick="event.stopPropagation()">@$1</a>')
+      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="url-link" onclick="event.stopPropagation()">$1</a>')
+      .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
+  }
+
+  return formattedText.replace(/\n/g, '<br>')
 }
 </script>
 
@@ -489,6 +572,16 @@ function formatText(text) {
   text-decoration: underline;
 }
 
+.tweet-content :deep(.url-link) {
+  color: #1d9bf0;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.tweet-content :deep(.url-link:hover) {
+  text-decoration: underline;
+}
+
 .show-more-btn {
   background: none;
   border: none;
@@ -504,6 +597,62 @@ function formatText(text) {
 .show-more-btn:hover {
   opacity: 0.8;
   text-decoration: underline;
+}
+
+/* 文章卡片 */
+.article-card {
+  border: 1px solid #e1e8ed;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  background: #fff;
+}
+
+.article-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.article-cover {
+  width: 100%;
+  max-height: 200px;
+  overflow: hidden;
+}
+
+.article-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.article-content {
+  padding: 12px 16px;
+}
+
+.article-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f1419;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.article-description {
+  font-size: 14px;
+  color: #536471;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-link {
+  font-size: 14px;
+  color: #1d9bf0;
+  font-weight: 500;
 }
 
 .tweet-media {

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: x-for-you-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: X_AUTH_TOKEN
+        sync: false
+      - key: X_CT0
+        sync: false
+      - key: X_BEARER_TOKEN
+        value: AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA
+      - key: HOME_TIMELINE_QUERY_ID
+        value: MpnCeE0hy8m5eWobPx8euw
+      - key: HOME_LATEST_TIMELINE_QUERY_ID
+        value: csRxUH5ocwnJtPnB3-wr4g
