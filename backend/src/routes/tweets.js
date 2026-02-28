@@ -3,9 +3,10 @@ import { getForYouTweets, getFollowingTweets } from '../services/xService.js';
 import {
   markPostAsRead,
   getReadStats,
-  isPostRead
+  isPostRead,
+  setSetting
 } from '../db/index.js';
-import { getConfig, updateQueryId } from '../config/queryConfig.js';
+import { getConfig, loadConfigFromDB } from '../config/settingsConfig.js';
 import { fetchQueryIdsFromX } from '../services/queryIdFetcher.js';
 
 const router = Router();
@@ -165,7 +166,7 @@ router.get('/config', (req, res) => {
  * 更新 Query ID
  * Body: { type: 'home' | 'following', queryId: string }
  */
-router.post('/config/query-id', (req, res) => {
+router.post('/config/query-id', async (req, res) => {
   const { type, queryId } = req.body;
 
   if (!type || !queryId) {
@@ -176,7 +177,19 @@ router.post('/config/query-id', (req, res) => {
   }
 
   try {
-    const config = updateQueryId(type, queryId);
+    const validTypes = ['home', 'following'];
+    if (!validTypes.includes(type)) {
+      throw new Error(`无效的类型: ${type}。必须是: ${validTypes.join(', ')}`);
+    }
+
+    const key = type === 'home'
+      ? 'HOME_TIMELINE_QUERY_ID'
+      : 'HOME_LATEST_TIMELINE_QUERY_ID';
+
+    await setSetting(key, queryId);
+    await loadConfigFromDB();
+
+    const config = getConfig();
     res.json({
       success: true,
       message: `已更新 ${type} 的 Query ID`,
@@ -213,14 +226,16 @@ router.post('/config/fetch-query-id', async (req, res) => {
     // 更新配置
     const updates = [];
     if (result.homeTimelineQueryId) {
-      updateQueryId('home', result.homeTimelineQueryId);
+      await setSetting('HOME_TIMELINE_QUERY_ID', result.homeTimelineQueryId);
       updates.push(`HomeTimeline: ${result.homeTimelineQueryId}`);
     }
     if (result.homeLatestTimelineQueryId) {
-      updateQueryId('following', result.homeLatestTimelineQueryId);
+      await setSetting('HOME_LATEST_TIMELINE_QUERY_ID', result.homeLatestTimelineQueryId);
       updates.push(`HomeLatestTimeline: ${result.homeLatestTimelineQueryId}`);
     }
 
+    // 重新加载配置
+    await loadConfigFromDB();
     console.log('✅ Query IDs updated:', updates.join(', '));
 
     const config = getConfig();
