@@ -29,7 +29,8 @@
       "Bash(rm:*)",
       "Bash(echo:*)",
       "Bash(git stash:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(mv:*)"
     ]
   }
 }

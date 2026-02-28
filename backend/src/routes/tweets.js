@@ -108,6 +108,42 @@ router.get('/read-stats', async (req, res) => {
 });
 
 /**
+ * POST /api/tweets/read-status
+ * 批量查询推文的已读状态
+ * Body: { tweetIds: string[] }
+ */
+router.post('/read-status', async (req, res) => {
+  try {
+    const { tweetIds } = req.body;
+
+    if (!Array.isArray(tweetIds) || tweetIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '需要提供 tweetIds 数组'
+      });
+    }
+
+    // 查询每个推文的已读状态
+    const statusMap = {};
+    for (const tweetId of tweetIds) {
+      const isRead = await isPostRead(tweetId);
+      statusMap[tweetId] = isRead;
+    }
+
+    res.json({
+      success: true,
+      data: statusMap
+    });
+  } catch (error) {
+    console.error('Error fetching read status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '查询已读状态失败'
+    });
+  }
+});
+
+/**
  * GET /api/tweets/config
  * 获取当前 Query ID 配置
  */

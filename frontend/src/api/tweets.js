@@ -76,3 +76,15 @@ export async function fetchQueryIdFromX() {
   const response = await axios.post(`${API_BASE}/tweets/config/fetch-query-id`)
   return response.data
 }
+
+/**
+ * 批量查询推文的已读状态
+ * @param {string[]} tweetIds - 推文ID数组
+ */
+export async function fetchReadStatus(tweetIds) {
+  if (!tweetIds || tweetIds.length === 0) return {}
+  const response = await axios.post(`${API_BASE}/tweets/read-status`, {
+    tweetIds
+  })
+  return response.data
+}

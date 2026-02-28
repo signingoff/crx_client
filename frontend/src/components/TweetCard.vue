@@ -1,12 +1,12 @@
 <template>
   <div
     class="tweet-card"
-    :class="{ 'is-selected': isSelected, 'is-read': isRead }"
+    :class="{ 'is-selected': isSelected, 'is-read': actualIsRead }"
     @click="handleTripleClick"
     title="连续单击3次切换已读/未读"
   >
     <!-- 已读标记 -->
-    <div v-if="isRead" class="read-indicator">✓ 已读</div>
+    <div v-if="actualIsRead" class="read-indicator">✓ 已读</div>
 
     <!-- X 图标按钮 - 点击打开 X.com -->
     <button class="x-link-btn" @click="openTweetLink" title="在 X.com 打开">
@@ -110,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { markTweetAsRead, markTweetAsUnread } from '../api/tweets.js'
 
 const props = defineProps({
@@ -121,15 +121,30 @@ const props = defineProps({
   isSelected: {
     type: Boolean,
     default: false
+  },
+  isRead: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['select-tweet'])
+const emit = defineEmits(['select-tweet', 'update:isRead'])
 
 const lightboxOpen = ref(false)
 const lightboxImage = ref(null)
 const isExpanded = ref(false)
-const isRead = ref(false)
+// 内部已读状态（用于三连击切换）
+const internalIsRead = ref(props.isRead)
+
+// 计算实际的已读状态（优先使用外部传入的）
+const actualIsRead = computed(() => {
+  return props.isRead || internalIsRead.value
+})
+
+// 监听外部 isRead 变化，同步到内部状态
+watch(() => props.isRead, (newVal) => {
+  internalIsRead.value = newVal
+})
 
 // 三连击检测
 const clickCount = ref(0)
@@ -253,8 +268,10 @@ async function handleTripleClick() {
     clickCount.value = 0
 
     // 切换状态
-    const newReadState = !isRead.value
-    isRead.value = newReadState
+    const newReadState = !internalIsRead.value
+    internalIsRead.value = newReadState
+    // 通知父组件状态变更
+    emit('update:isRead', newReadState)
 
     try {
       if (newReadState) {
@@ -265,7 +282,8 @@ async function handleTripleClick() {
     } catch (err) {
       console.error('标记已读/未读失败:', err)
       // 如果失败，回滚状态
-      isRead.value = !newReadState
+      internalIsRead.value = !newReadState
+      emit('update:isRead', !newReadState)
     }
   }
 }
