@@ -6,6 +6,23 @@ const router = Router();
 // 敏感字段列表（返回时隐藏）
 const SENSITIVE_KEYS = ['X_AUTH_TOKEN', 'X_CT0'];
 
+// API Key 验证中间件
+function requireApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  const validKey = process.env.ADMIN_API_KEY || 'x-for-you-admin-2026';
+
+  if (apiKey !== validKey) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized: Invalid API Key'
+    });
+  }
+  next();
+}
+
+// 所有 settings 路由都需要 API Key
+router.use(requireApiKey);
+
 /**
  * GET /api/settings
  * 获取所有设置
