@@ -697,7 +697,40 @@ function formatNumber(num) {
 - 可同时显示多条推文进行对比
 - 响应式网格布局
 
-### 10. 已读状态自动同步
+### 10. 重启与部署流程
+
+**重启时需要同时执行：**
+
+1. **提交代码**
+   ```bash
+   git add -A
+   git commit -m "描述更改"
+   git push origin main    # 触发 Render 后端自动部署
+   ```
+
+2. **部署前端到 Vercel**
+   ```bash
+   cd frontend
+   vercel --prod
+   ```
+
+3. **本地重启服务**
+   ```bash
+   # Windows 清理端口
+   taskkill -F -IM node.exe
+
+   # 启动后端 (端口 3000)
+   cd backend && npm run dev
+
+   # 启动前端 (端口 5173)
+   cd frontend && npm run dev
+   ```
+
+**部署地址：**
+- 生产环境: https://frontend-eight-gilt-50.vercel.app
+- 本地开发: http://localhost:5173
+
+### 11. 已读状态自动同步
 
 **文件**: `frontend/src/components/TweetList.vue`
 

@@ -533,7 +533,41 @@ router.post('/mark-read', (req, res) => {
 });
 ```
 
-### 6. 入口文件
+### 6. 重启与部署流程
+
+**重启时需要同时执行：**
+
+1. **提交并推送代码**
+   ```bash
+   git add -A
+   git commit -m "描述更改"
+   git push origin main
+   ```
+   - 推送到 GitHub 自动触发 Render 后端部署
+
+2. **部署前端**
+   ```bash
+   cd frontend
+   vercel --prod
+   ```
+
+3. **本地重启**
+   ```bash
+   # Windows 清理端口
+   taskkill -F -IM node.exe
+
+   # 启动后端
+   cd backend && npm run dev
+
+   # 启动前端
+   cd frontend && npm run dev
+   ```
+
+**部署地址：**
+- 生产环境: https://x-for-you-backend.onrender.com
+- 本地开发: http://localhost:3000
+
+### 7. 入口文件
 
 **文件**: `backend/src/index.js`
 

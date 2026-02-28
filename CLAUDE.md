@@ -300,6 +300,33 @@ npm run build           # 构建生产包
 npm run preview         # 预览生产构建
 ```
 
+### 重启和部署流程
+
+**重启时需要同时执行以下操作：**
+
+```bash
+# 1. 提交代码更改
+git add -A
+git commit -m "描述更改"
+
+# 2. 推送到 GitHub 触发 Render 后端自动部署
+git push origin main
+
+# 3. 部署前端到 Vercel
+cd frontend
+vercel --prod
+
+# 4. 本地重启前后端
+taskkill -F -IM node.exe  # Windows 清理端口
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+**部署地址：**
+- 前端: https://frontend-eight-gilt-50.vercel.app
+- 后端: https://x-for-you-backend.onrender.com
+- 本地: http://localhost:5173 (前端), http://localhost:3000 (后端)
+
 ### 端口冲突解决
 
 ```bash
