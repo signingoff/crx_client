@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = '/api/xueqiu';
+const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/xueqiu` : '/api/xueqiu';
 
 /**
  * 获取用户时间线

@@ -125,7 +125,7 @@ import { ref, onMounted } from 'vue'
 import { fetchUserTimeline, fetchUserInfo, fetchAllTimeline } from '../api/xueqiu.js'
 import axios from 'axios'
 
-const API_BASE = '/api/xueqiu'
+const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/xueqiu` : '/api/xueqiu'
 
 const userId = ref('')
 const contentType = ref(1)
@@ -142,7 +142,7 @@ const hasMore = ref(false)
 onMounted(async () => {
   try {
     // 从新 API 获取用户列表
-    const res = await axios.get('/api/xueqiu/users')
+    const res = await axios.get(`${API_BASE}/users`)
     if (res.data.success && res.data.data?.length > 0) {
       userId.value = res.data.data[0].user_id?.toString() || res.data.data[0].id
       await handleSearch()

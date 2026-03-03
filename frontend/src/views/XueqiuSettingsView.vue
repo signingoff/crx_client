@@ -87,7 +87,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 const userList = ref([]) // [{id, user_id, screen_name, name, postCount, loading}]
 const newUserId = ref('')
