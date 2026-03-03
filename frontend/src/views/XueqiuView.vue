@@ -125,7 +125,7 @@ import { ref, onMounted } from 'vue'
 import { fetchUserTimeline, fetchUserInfo, fetchAllTimeline } from '../api/xueqiu.js'
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/xueqiu` : '/api/xueqiu'
+const API_BASE = '/api/xueqiu'
 
 const userId = ref('')
 const contentType = ref(1)

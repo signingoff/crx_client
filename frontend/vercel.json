@@ -3,11 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "build": {
-    "env": {
-      "VITE_API_BASE": "https://x-for-you-backend.onrender.com/api"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
