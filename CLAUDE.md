@@ -484,6 +484,52 @@ backend (Express)
   └── express → Web 框架
 ```
 
+## 雪球网功能
+
+### 概述
+
+获取雪球网(xueqiu.com)用户历史发言。
+
+### 技术方案
+
+- **认证方式**: 用户提供 Cookie (xq_a_token)
+- **反爬措施**: Puppeteer 无头浏览器
+- **API 端点**:
+  - `GET /api/xueqiu/user/:userId` - 获取用户时间线
+  - `GET /api/xueqiu/user/:userId/info` - 获取用户信息
+
+### 关键文件
+
+| 文件 | 说明 |
+|------|------|
+| `backend/src/services/xueqiuService.js` | 雪球 API 服务 |
+| `backend/src/routes/xueqiu.js` | 后端路由 |
+| `frontend/src/api/xueqiu.js` | 前端 API |
+| `frontend/src/views/XueqiuView.vue` | 雪球页面 |
+
+### 雪球 API
+
+```
+# 用户时间线
+https://xueqiu.com/statuses/user_timeline.json?user_id={ID}&page={页}&type=1
+
+# 用户信息
+https://xueqiu.com/v4/users/{id}
+```
+
+### 配置
+
+```env
+# backend/.env
+XUEQIU_COOKIE=your_xq_a_token_here
+```
+
+### 注意事项
+
+- 雪球有反爬机制，需要使用 Puppeteer 绕过
+- Cookie 需要定期更新
+- 部分用户时间线可能需要登录才能访问
+
 ## 更新日志
 
 ### 2026-03-01

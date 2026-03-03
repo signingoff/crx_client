@@ -81,6 +81,58 @@
             {{ message }}
           </div>
         </div>
+
+        <!-- 雪球用户设置 -->
+        <div class="section">
+          <h4>❄️ 雪球网监控</h4>
+          <p class="description">
+            设置要监控的雪球用户ID，后台会自动获取并保存该用户的所有发言到数据库。
+          </p>
+
+          <div class="current-config">
+            <div class="config-item">
+              <label>当前监控用户ID:</label>
+              <code>{{ xueqiuUserId || '未设置' }}</code>
+            </div>
+            <div class="config-item">
+              <label>用户名:</label>
+              <span>{{ xueqiuUserName || '-' }}</span>
+            </div>
+            <div class="config-item">
+              <label>状态:</label>
+              <span :class="['status', syncStatus]">{{ syncStatusText }}</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>雪球用户ID:</label>
+            <input
+              v-model="newXueqiuUserId"
+              type="text"
+              placeholder="输入雪球用户ID（如 7433300125）..."
+            />
+          </div>
+          <button
+            class="btn btn-secondary"
+            @click="saveXueqiuUserId"
+            :disabled="!newXueqiuUserId.trim()"
+          >
+            💾 保存监控用户
+          </button>
+
+          <div class="help-section">
+            <h5>💡 如何获取用户ID?</h5>
+            <ol>
+              <li>打开雪球用户主页，如 <a href="https://xueqiu.com/u/7433300125" target="_blank">xueqiu.com/u/7433300125</a></li>
+              <li>URL 中的数字就是用户ID</li>
+              <li>或者输入用户名（如 方三文），系统会自动查找用户ID</li>
+            </ol>
+          </div>
+
+          <div v-if="xueqiuMessage" :class="['message', xueqiuMessageType]">
+            {{ xueqiuMessage }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -89,6 +141,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getQueryConfig, updateQueryId, fetchQueryIdFromX } from '../api/tweets.js'
+import axios from 'axios'
+
+const API_BASE = '/api'
 
 const emit = defineEmits(['close', 'updated'])
 
@@ -99,13 +154,82 @@ const messageType = ref('info')
 const manualHomeQueryId = ref('')
 const manualFollowingQueryId = ref('')
 
+// 雪球用户设置
+const xueqiuUserId = ref('')
+const xueqiuUserName = ref('')
+const newXueqiuUserId = ref('')
+const syncStatus = ref('idle') // idle, syncing, error
+const syncStatusText = computed(() => {
+  if (syncStatus.value === 'syncing') return '同步中...'
+  if (syncStatus.value === 'error') return '同步失败'
+  return '已停止'
+})
+const xueqiuMessage = ref('')
+const xueqiuMessageType = ref('info')
+
 const canManualUpdate = computed(() => {
   return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim()
 })
 
 onMounted(async () => {
   await loadConfig()
+  await loadXueqiuConfig()
 })
+
+async function loadXueqiuConfig() {
+  try {
+    const response = await axios.get(`${API_BASE}/settings/XUEQIU_TARGET_USER_ID`)
+    if (response.data.success && response.data.data?.value) {
+      xueqiuUserId.value = response.data.data.value
+
+      // 获取用户名
+      const userRes = await axios.get(`${API_BASE}/xueqiu/user/${xueqiuUserId.value}/info`)
+      if (userRes.data.success && userRes.data.data?.screen_name) {
+        xueqiuUserName.value = userRes.data.data.screen_name
+      }
+    }
+  } catch (err) {
+    console.log('加载雪球配置失败:', err.message)
+  }
+}
+
+async function saveXueqiuUserId() {
+  if (!newXueqiuUserId.value.trim()) return
+
+  try {
+    await axios.post(`${API_BASE}/settings/XUEQIU_TARGET_USER_ID`, {
+      value: newXueqiuUserId.value.trim()
+    })
+
+    xueqiuUserId.value = newXueqiuUserId.value.trim()
+    newXueqiuUserId.value = ''
+
+    // 尝试获取用户名
+    try {
+      const userRes = await axios.get(`${API_BASE}/xueqiu/user/${xueqiuUserId.value}/info`)
+      if (userRes.data.success && userRes.data.data?.screen_name) {
+        xueqiuUserName.value = userRes.data.data.screen_name
+      }
+    } catch (e) {}
+
+    showXueqiuMessage('✅ 监控用户已保存！', 'success')
+
+    // 触发立即同步
+    try {
+      await axios.get(`${API_BASE}/xueqiu/sync`)
+    } catch (e) {}
+  } catch (err) {
+    showXueqiuMessage('❌ 保存失败: ' + err.message, 'error')
+  }
+}
+
+function showXueqiuMessage(text, type = 'info') {
+  xueqiuMessage.value = text
+  xueqiuMessageType.value = type
+  setTimeout(() => {
+    xueqiuMessage.value = ''
+  }, 5000)
+}
 
 async function loadConfig() {
   try {
@@ -425,5 +549,26 @@ function formatTime(isoString) {
 .message.info {
   background: #d1ecf1;
   color: #0c5460;
+}
+
+.status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status.idle {
+  background: #e1e8ed;
+  color: #536471;
+}
+
+.status.syncing {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status.error {
+  background: #f8d7da;
+  color: #721c24;
 }
 </style>

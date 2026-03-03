@@ -196,4 +196,129 @@ export async function getAllSettings() {
   }
 }
 
+/**
+ * 雪球帖子相关功能
+ */
+
+const XUEQIU_POSTS_TABLE = 'xueqiu_posts';
+
+let tableChecked = false;
+let tableReady = false;
+
+/**
+ * 自动创建雪球帖子表（如果不存在）
+ * 使用 Supabase Management API 需要额外权限，这里使用备选方案
+ */
+export async function ensureXueqiuPostsTable() {
+  if (!supabase) return false;
+  if (tableChecked && tableReady) return true;
+
+  try {
+    // 尝试直接插入数据，如果表不存在会报错
+    const { error: insertError } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .insert({
+        id: Date.now(),
+        user_id: 0,
+        user_screen_name: '__check__',
+        text: '__check__',
+        created_at: Date.now()
+      })
+      .single();
+
+    if (!insertError) {
+      // 成功插入，清理测试数据
+      await supabase.from(XUEQIU_POSTS_TABLE).delete().eq('user_screen_name', '__check__');
+      tableChecked = true;
+      tableReady = true;
+      return true;
+    }
+
+    console.log('雪球帖子表不存在，插入错误:', insertError.message);
+    tableChecked = true;
+    tableReady = false;
+    return false;
+  } catch (err) {
+    console.error('检查雪球帖子表失败:', err.message);
+    tableChecked = true;
+    tableReady = false;
+    return false;
+  }
+}
+
+/**
+ * 保存雪球帖子到数据库
+ * @param {Array} posts - 帖子数组
+ * @param {number} userId - 用户ID
+ * @param {string} userScreenName - 用户名
+ */
+export async function saveXueqiuPosts(posts, userId, userScreenName) {
+  if (!supabase) return false;
+
+  try {
+    // 确保表存在
+    await ensureXueqiuPostsTable();
+
+    // 准备插入数据
+    const insertData = posts.map(post => ({
+      id: post.id,
+      user_id: post.user?.id || userId,
+      user_screen_name: post.user?.screen_name || userScreenName,
+      text: post.text,
+      created_at: post.created_at,
+      reposts_count: post.reposts_count || 0,
+      comments_count: post.comments_count || 0,
+      likes_count: post.likes_count || 0,
+      source: post.source || '雪球'
+    }));
+
+    // 使用 upsert 插入数据，忽略冲突
+    const { error } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .upsert(insertData, {
+        onConflict: 'id',
+        ignoreDuplicates: true
+      });
+
+    if (error) {
+      console.error('保存雪球帖子失败:', error.message);
+      return false;
+    }
+
+    console.log(`保存了 ${insertData.length} 条雪球帖子`);
+    return true;
+  } catch (err) {
+    console.error('保存雪球帖子异常:', err.message);
+    return false;
+  }
+}
+
+/**
+ * 获取用户的雪球帖子
+ * @param {number} userId - 用户ID
+ * @param {number} limit - 数量限制
+ */
+export async function getXueqiuPosts(userId, limit = 100) {
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('获取雪球帖子失败:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('获取雪球帖子异常:', err.message);
+    return [];
+  }
+}
+
 export default supabase;

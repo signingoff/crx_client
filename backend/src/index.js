@@ -3,7 +3,6 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import tweetsRouter from './routes/tweets.js';
 import { validateCookies } from './config/auth.js';
 
 const app = express();
@@ -34,8 +33,21 @@ try {
   console.warn('⚠️ Cookie 验证警告:', err.message);
 }
 
-// 路由
+// 动态加载路由（确保 dotenv 已加载）
+const tweetsRouter = (await import('./routes/tweets.js')).default;
 app.use('/api/tweets', tweetsRouter);
+
+// 设置路由
+const settingsRouter = (await import('./routes/settings-db.js')).default;
+app.use('/api/settings', settingsRouter);
+
+// 雪球网路由 - 使用 Puppeteer
+const xueqiuRouter = (await import('./routes/xueqiu.js')).default;
+app.use('/api/xueqiu', xueqiuRouter);
+
+// 启动雪球帖子同步任务
+import { startXueqiuSync } from './services/xueqiuSync.js';
+startXueqiuSync(10000); // 每 10 秒同步一次
 
 // 根路径
 app.get('/', (req, res) => {

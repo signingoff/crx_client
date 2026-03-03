@@ -4,7 +4,7 @@ import { getAllSettings, getSetting, setSetting } from '../db/index.js';
 const router = Router();
 
 // 敏感字段列表（返回时隐藏）
-const SENSITIVE_KEYS = ['X_AUTH_TOKEN', 'X_CT0'];
+const SENSITIVE_KEYS = ['X_AUTH_TOKEN', 'X_CT0', 'XUEQIU_COOKIE'];
 
 /**
  * GET /api/settings
