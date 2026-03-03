@@ -435,20 +435,23 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
       avatar: post.user?.profile_image_url || ''
     }));
 
-    // 先删除该用户所有帖子
-    await supabase.from(XUEQIU_POSTS_TABLE).delete().eq('user_id', userId);
-
-    // 插入新数据
+    // 使用 upsert 跳过重复记录
     const { error } = await supabase
       .from(XUEQIU_POSTS_TABLE)
-      .insert(insertData);
+      .upsert(insertData, { onConflict: 'id', ignoreDuplicates: true });
 
     if (error) {
       console.error('保存雪球帖子失败:', error.message);
       return false;
     }
 
-    console.log(`保存了 ${insertData.length} 条雪球帖子`);
+    // 统计实际插入的数量
+    const { count } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    console.log(`保存了 ${count || insertData.length} 条雪球帖子`);
     return true;
   } catch (err) {
     console.error('保存雪球帖子异常:', err.message);

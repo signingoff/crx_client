@@ -47,7 +47,7 @@ app.use('/api/xueqiu', xueqiuRouter);
 
 // 启动雪球帖子同步任务
 import { startXueqiuSync } from './services/xueqiuSync.js';
-startXueqiuSync(10000); // 每 10 秒同步一次
+startXueqiuSync(300000); // 每 5 分钟同步一次
 
 // 根路径
 app.get('/', (req, res) => {

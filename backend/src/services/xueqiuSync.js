@@ -72,27 +72,27 @@ async function syncSingleUser(targetUserId) {
     const allPosts = [];
 
     // 尝试获取所有页面的数据，直到没有更多
-    for (let page = 1; ; page++) {
+    const maxPages = 50; // 最多获取50页
+    for (let page = 1; page <= maxPages; page++) {
       try {
         const result = await xueqiuService.getUserTimeline(targetUserId, page, 1);
+
+        console.log(`用户 ${targetUserId} 第 ${page} 页: ${result.statuses?.length || 0} 条`);
 
         if (result.statuses && result.statuses.length > 0) {
           // 使用 parseTimelineResponse 处理数据
           const parsed = xueqiuService.parseTimelineResponse(result);
           allPosts.push(...parsed.statuses);
-
-          // 如果没有更多页面，退出
-          if (!result.maxPage || page >= result.maxPage) {
-            break;
-          }
         } else {
+          console.log(`用户 ${targetUserId} 共 ${allPosts.length} 条，无更多数据`);
           break;
         }
       } catch (e) {
-        console.log(`获取第 ${page} 页失败:`, e.message);
+        console.log(`获取第 ${page} 页失败: ${e.message}`);
         break;
       }
     }
+    console.log(`用户 ${targetUserId} 共 ${allPosts.length} 条`);
 
     if (allPosts.length > 0) {
       // 保存到数据库，去掉 -雪球 后缀
