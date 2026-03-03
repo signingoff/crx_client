@@ -51,13 +51,6 @@
 
     <div class="tweet-content">
       <p v-html="formatText(displayText, props.tweet.entities)"></p>
-      <button
-        v-if="tweet.isLongText"
-        class="show-more-btn"
-        @click.stop="toggleExpanded"
-      >
-        {{ isExpanded ? 'Show less' : 'Show more' }}
-      </button>
     </div>
 
     <!-- 文章卡片 -->
@@ -132,7 +125,6 @@ const emit = defineEmits(['select-tweet', 'update:isRead'])
 
 const lightboxOpen = ref(false)
 const lightboxImage = ref(null)
-const isExpanded = ref(false)
 // 内部已读状态（用于三连击切换）
 const internalIsRead = ref(props.isRead)
 
@@ -225,16 +217,8 @@ const displayText = computed(() => {
     text = parsedRetweet.value.originalText
   }
 
-  // 长推文未展开时截断显示
-  if (props.tweet.isLongText && !isExpanded.value) {
-    return text.slice(0, 280) + '...'
-  }
   return text
 })
-
-function toggleExpanded() {
-  isExpanded.value = !isExpanded.value
-}
 
 function openTweetLink() {
   window.open(`https://x.com/i/web/status/${props.tweet.id}`, '_blank')
@@ -597,23 +581,6 @@ function formatText(text, entities = null) {
 }
 
 .tweet-content :deep(.url-link:hover) {
-  text-decoration: underline;
-}
-
-.show-more-btn {
-  background: none;
-  border: none;
-  color: #1d9bf0;
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 0;
-  margin-top: 4px;
-  transition: opacity 0.2s;
-}
-
-.show-more-btn:hover {
-  opacity: 0.8;
   text-decoration: underline;
 }
 

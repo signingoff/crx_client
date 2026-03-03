@@ -56,15 +56,8 @@ async function embedTweet() {
   try {
     const twttr = await loadTwitterScript()
 
-    // 清空容器，但保留一个备用链接
-    const tweetUrl = `https://x.com/i/web/status/${props.tweetId}`
-    tweetContainer.value.innerHTML = `
-      <div class="tweet-fallback">
-        <a href="${tweetUrl}" target="_blank" class="tweet-link">
-          查看推文 #${props.tweetId}
-        </a>
-      </div>
-    `
+    // 清空容器
+    tweetContainer.value.innerHTML = ''
 
     // 创建推文嵌入
     const result = await twttr.widgets.createTweet(
@@ -81,7 +74,6 @@ async function embedTweet() {
     )
 
     // 如果 createTweet 返回 null，说明推文无法加载
-    // 但我们已经保留了备用链接
     if (!result) {
       console.warn(`Tweet ${props.tweetId} could not be embedded`)
     }
@@ -89,17 +81,9 @@ async function embedTweet() {
     loading.value = false
   } catch (err) {
     console.error('Error embedding tweet:', err)
-    // 即使出错，也显示备用链接
-    const tweetUrl = `https://x.com/i/web/status/${props.tweetId}`
+    // 出错时清空容器
     if (tweetContainer.value) {
-      tweetContainer.value.innerHTML = `
-        <div class="tweet-fallback">
-          <a href="${tweetUrl}" target="_blank" class="tweet-link">
-            查看推文 #${props.tweetId}
-          </a>
-          <div class="error-hint">Twitter 嵌入加载失败</div>
-        </div>
-      `
+      tweetContainer.value.innerHTML = ''
     }
     loading.value = false
   }
@@ -132,29 +116,5 @@ watch(() => props.tweetId, () => {
   color: #f4212e;
   background: #ffe5e5;
   border-radius: 8px;
-}
-
-.tweet-fallback {
-  text-align: center;
-  padding: 20px;
-  background: #f7f9fa;
-  border-radius: 8px;
-  border: 1px solid #e1e8ed;
-}
-
-.tweet-link {
-  color: #1d9bf0;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.tweet-link:hover {
-  text-decoration: underline;
-}
-
-.error-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #536471;
 }
 </style>

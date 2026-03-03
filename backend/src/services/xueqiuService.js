@@ -1,21 +1,30 @@
 import { chromium } from 'playwright';
+import axios from 'axios';
 
 let browser = null;
+let useAxios = false; // 备用方案标记
 
 /**
  * 获取或创建浏览器实例
  */
 async function getBrowser() {
+  if (useAxios) return null; // 使用备用方案
   if (!browser) {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    });
+    try {
+      browser = await chromium.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled'
+        ]
+      });
+    } catch (err) {
+      console.log('Playwright 启动失败，使用备用方案:', err.message);
+      useAxios = true;
+      return null;
+    }
   }
   return browser;
 }
@@ -37,10 +46,34 @@ async function getCookie() {
 }
 
 /**
- * 使用 Playwright 获取雪球用户时间线
+ * 使用 Playwright 或 axios 获取雪球用户时间线
  */
 async function getUserTimeline(userId, page = 1, type = 1) {
+  // 备用方案：使用 axios 直接请求
+  if (useAxios) {
+    try {
+      const cookie = await getCookie();
+      const response = await axios.get(
+        `https://xueqiu.com/statuses/user_timeline.json?user_id=${userId}&page=${page}&type=${type}`,
+        {
+          headers: {
+            'Cookie': `xq_a_token=${cookie}`,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://xueqiu.com/'
+          },
+          timeout: 30000
+        }
+      );
+      return response.data;
+    } catch (e) {
+      console.log('axios 请求失败:', e.message);
+      return { statuses: [], maxPage: 1 };
+    }
+  }
+
   const b = await getBrowser();
+  if (!b) return { statuses: [], maxPage: 1 };
+
   const context = await b.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   });
@@ -65,16 +98,16 @@ async function getUserTimeline(userId, page = 1, type = 1) {
     });
 
     const json = await response.json();
-    return json;
-
     await page2.close();
     await context.close();
     return json;
   } catch (e) {
     console.log('API请求失败:', e.message);
+    // 降级到备用方案
+    useAxios = true;
     await page2.close();
     await context.close();
-    return { statuses: [], maxPage: 1 };
+    return getUserTimeline(userId, page, type);
   }
 }
 

@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(*)",
       "Bash(claude:*)",
       "Bash(npm install:*)",
       "Bash(code .:*)",
@@ -30,7 +31,8 @@
       "Bash(echo:*)",
       "Bash(git stash:*)",
       "Bash(vercel:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(npx puppeteer:*)"
     ]
   }
 }

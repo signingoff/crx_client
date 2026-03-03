@@ -3,14 +3,14 @@
     <header class="header">
       <h1>🔥 X For You</h1>
       <div class="header-actions">
-        <router-link to="/xueqiu" class="nav-link" title="雪球网发言">
+        <router-link to="/xueqiu" class="nav-link" title="雪球发言">
           ❄️
         </router-link>
-        <router-link to="/embed" class="nav-link" title="嵌入推文">
-          🔗
+        <router-link to="/xueqiu/settings" class="nav-link" title="雪球用户管理">
+          ⚙️
         </router-link>
         <button class="settings-btn" @click="openSettings" title="设置">
-          ⚙️
+          🔧
         </button>
         <span v-if="loading && tweets.length === 0" class="loading-indicator">⟳ 加载中...</span>
         <span v-else-if="lastUpdated" class="last-updated">{{ lastUpdated }}</span>
