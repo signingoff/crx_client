@@ -163,22 +163,17 @@ router.get('/saved/:userId', async (req, res) => {
     const { userId } = req.params;
     const posts = await getXueqiuPosts(parseInt(userId), 500);
 
-    // 尝试获取最新帖子以获取头像
+    // 优先从用户表获取头像
     let avatar = '';
-    try {
-      const timeline = await xueqiuService.getUserTimeline(userId, 1, 1);
-      if (timeline.statuses && timeline.statuses[0]?.user?.profile_image_url) {
-        let url = timeline.statuses[0].user.profile_image_url;
-        if (!url.startsWith('http')) {
-          // 取第一个（原始尺寸），构造 240x240 尺寸
-          const firstUrl = url.split(',')[0];
-          avatar = 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
-        } else {
-          avatar = url;
-        }
+    const user = await getXueqiuUser(parseInt(userId));
+    if (user?.profile_image_url) {
+      let url = user.profile_image_url;
+      if (!url.startsWith('http')) {
+        const firstUrl = url.split(',')[0];
+        avatar = 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
+      } else {
+        avatar = url;
       }
-    } catch (e) {
-      console.log('获取用户头像失败:', e.message);
     }
 
     // 为每个帖子添加头像

@@ -431,7 +431,8 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
       reposts_count: post.reposts_count || 0,
       comments_count: post.comments_count || 0,
       likes_count: post.likes_count || 0,
-      source: post.source || '雪球'
+      source: post.source || '雪球',
+      avatar: post.user?.profile_image_url || ''
     }));
 
     // 先删除该用户所有帖子
