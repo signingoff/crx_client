@@ -19,7 +19,7 @@ backend/
 ├── src/
 │   ├── services/
 │   │   ├── xueqiuService.js  # 雪球 API 服务（Playwright）
-│   │   └── xueqiuSync.js     # 后台同步服务
+│   │   └── xueqiuSync.js     # 后台同步服务（支持多用户）
 │   ├── routes/
 │   │   └── xueqiu.js         # 后端路由
 │   └── db/
@@ -30,22 +30,77 @@ frontend/
 │   ├── api/
 │   │   └── xueqiu.js         # 前端 API
 │   ├── views/
-│   │   └── XueqiuView.vue    # 雪球页面
+│   │   ├── XueqiuView.vue           # 雪球发言列表页
+│   │   └── XueqiuSettingsView.vue   # 雪球用户管理页
 │   ├── router/
 │   │   └── index.js           # 路由配置
 │   └── components/
-│       └── QueryIdSettings.vue # 设置页面（雪球用户ID配置）
+│       └── QueryIdSettings.vue # 原设置页（保留兼容）
 ```
 
 ## API 端点
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| GET | /api/xueqiu/users | 获取用户列表 |
+| POST | /api/xueqiu/users | 添加用户 |
+| DELETE | /api/xueqiu/users/:userId | 删除用户 |
 | GET | /api/xueqiu/user/:userId | 获取用户时间线 |
 | GET | /api/xueqiu/user/:userId/info | 获取用户信息 |
 | GET | /api/xueqiu/saved/:userId | 获取已保存的帖子 |
 | GET | /api/xueqiu/sync | 手动触发同步 |
 | GET | /api/xueqiu/health | 健康检查 |
+
+## 数据库表
+
+### xueqiu_users - 用户表
+
+```sql
+CREATE TABLE xueqiu_users (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT UNIQUE NOT NULL,
+  screen_name TEXT,
+  profile_image_url TEXT,
+  description TEXT,
+  followers_count INTEGER DEFAULT 0,
+  friends_count INTEGER DEFAULT 0,
+  statuses_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_xueqiu_users_user_id ON xueqiu_users(user_id);
+```
+
+### xueqiu_posts - 帖子表
+
+```sql
+CREATE TABLE xueqiu_posts (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  user_screen_name TEXT,
+  text TEXT,
+  created_at TIMESTAMP WITH TIME ZONE,
+  reposts_count INTEGER DEFAULT 0,
+  comments_count INTEGER DEFAULT 0,
+  likes_count INTEGER DEFAULT 0,
+  source TEXT
+);
+
+CREATE INDEX idx_xueqiu_posts_user_id ON xueqiu_posts(user_id);
+```
+
+## 前端页面
+
+| 路径 | 说明 |
+|------|------|
+| /xueqiu | 雪球发言列表页 |
+| /xueqiu/settings | 雪球用户管理页 |
+
+## 多用户支持
+
+- 使用 `xueqiu_users` 表存储用户信息
+- 后台每 10 秒自动同步所有用户的帖子
+- 设置页表格展示：用户ID、用户名（screen_name）、帖子数
 
 ## 请求参数
 

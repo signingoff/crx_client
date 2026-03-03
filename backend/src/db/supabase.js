@@ -201,6 +201,7 @@ export async function getAllSettings() {
  */
 
 const XUEQIU_POSTS_TABLE = 'xueqiu_posts';
+const XUEQIU_USERS_TABLE = 'xueqiu_users';
 
 let tableChecked = false;
 let tableReady = false;
@@ -247,6 +248,167 @@ export async function ensureXueqiuPostsTable() {
 }
 
 /**
+ * 雪球用户相关功能
+ */
+
+let usersTableChecked = false;
+let usersTableReady = false;
+
+/**
+ * 自动创建雪球用户表（如果不存在）
+ */
+export async function ensureXueqiuUsersTable() {
+  if (!supabase) return false;
+  if (usersTableChecked && usersTableReady) return true;
+
+  try {
+    const { error: insertError } = await supabase
+      .from(XUEQIU_USERS_TABLE)
+      .insert({
+        id: 0,
+        user_id: 0,
+        screen_name: '__check__',
+        profile_image_url: '__check__',
+        description: '__check__',
+        followers_count: 0,
+        friends_count: 0,
+        statuses_count: 0
+      });
+
+    if (insertError && insertError.message.includes('does not exist')) {
+      console.log('需要创建 xueqiu_users 表，请手动执行:');
+      console.log(`
+CREATE TABLE xueqiu_users (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT UNIQUE NOT NULL,
+  screen_name TEXT,
+  profile_image_url TEXT,
+  description TEXT,
+  followers_count INTEGER DEFAULT 0,
+  friends_count INTEGER DEFAULT 0,
+  statuses_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_xueqiu_users_user_id ON xueqiu_users(user_id);
+      `);
+      usersTableChecked = true;
+      usersTableReady = false;
+      return false;
+    }
+
+    // 删除测试数据
+    await supabase.from(XUEQIU_USERS_TABLE).delete().eq('user_id', 0);
+    usersTableChecked = true;
+    usersTableReady = true;
+    console.log('✓ xueqiu_users 表已就绪');
+    return true;
+  } catch (err) {
+    console.error('检查雪球用户表失败:', err.message);
+    usersTableChecked = true;
+    usersTableReady = false;
+    return false;
+  }
+}
+
+/**
+ * 保存或更新雪球用户信息
+ * @param {Object} user - 用户信息
+ */
+export async function saveXueqiuUser(user) {
+  if (!supabase) return false;
+
+  try {
+    await ensureXueqiuUsersTable();
+
+    const { error } = await supabase
+      .from(XUEQIU_USERS_TABLE)
+      .upsert({
+        id: user.id || user.user_id,
+        user_id: user.user_id || user.id,
+        screen_name: user.screen_name,
+        profile_image_url: user.profile_image_url,
+        description: user.description,
+        followers_count: user.followers_count || 0,
+        friends_count: user.friends_count || 0,
+        statuses_count: user.statuses_count || 0
+      }, { onConflict: 'user_id' });
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('保存雪球用户失败:', err.message);
+    return false;
+  }
+}
+
+/**
+ * 获取雪球用户信息
+ * @param {number} userId - 用户ID
+ */
+export async function getXueqiuUser(userId) {
+  if (!supabase) return null;
+
+  try {
+    await ensureXueqiuUsersTable();
+
+    const { data, error } = await supabase
+      .from(XUEQIU_USERS_TABLE)
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * 获取所有雪球用户列表
+ */
+export async function getXueqiuUsers() {
+  if (!supabase) return [];
+
+  try {
+    await ensureXueqiuUsersTable();
+
+    const { data, error } = await supabase
+      .from(XUEQIU_USERS_TABLE)
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * 删除雪球用户
+ * @param {number} userId - 用户ID
+ */
+export async function deleteXueqiuUser(userId) {
+  if (!supabase) return false;
+
+  try {
+    await ensureXueqiuUsersTable();
+
+    const { error } = await supabase
+      .from(XUEQIU_USERS_TABLE)
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('删除雪球用户失败:', err.message);
+    return false;
+  }
+}
+
+/**
  * 保存雪球帖子到数据库
  * @param {Array} posts - 帖子数组
  * @param {number} userId - 用户ID
@@ -264,7 +426,7 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
       id: post.id,
       user_id: post.user?.id || userId,
       user_screen_name: post.user?.screen_name || userScreenName,
-      text: post.text,
+      text: post.text || '',
       created_at: post.created_at,
       reposts_count: post.reposts_count || 0,
       comments_count: post.comments_count || 0,
@@ -272,13 +434,13 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
       source: post.source || '雪球'
     }));
 
-    // 使用 upsert 插入数据，忽略冲突
+    // 先删除该用户所有帖子
+    await supabase.from(XUEQIU_POSTS_TABLE).delete().eq('user_id', userId);
+
+    // 插入新数据
     const { error } = await supabase
       .from(XUEQIU_POSTS_TABLE)
-      .upsert(insertData, {
-        onConflict: 'id',
-        ignoreDuplicates: true
-      });
+      .insert(insertData);
 
     if (error) {
       console.error('保存雪球帖子失败:', error.message);
@@ -318,6 +480,33 @@ export async function getXueqiuPosts(userId, limit = 100) {
   } catch (err) {
     console.error('获取雪球帖子异常:', err.message);
     return [];
+  }
+}
+
+/**
+ * 获取所有用户的帖子数统计
+ */
+export async function getXueqiuUserPostCounts() {
+  if (!supabase) return {};
+
+  try {
+    const { data, error } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .select('user_id')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 按 user_id 分组统计
+    const counts = {};
+    for (const post of (data || [])) {
+      counts[post.user_id] = (counts[post.user_id] || 0) + 1;
+    }
+
+    return counts;
+  } catch (err) {
+    console.error('获取用户帖子数统计失败:', err.message);
+    return {};
   }
 }
 

@@ -1,6 +1,6 @@
-import { getSetting, setSetting } from '../db/index.js';
+import { getSetting } from '../db/index.js';
 import xueqiuService from './xueqiuService.js';
-import { saveXueqiuPosts } from '../db/supabase.js';
+import { saveXueqiuPosts, saveXueqiuUser, getXueqiuUsers } from '../db/supabase.js';
 
 let syncInterval = null;
 
@@ -39,26 +39,47 @@ export function stopXueqiuSync() {
  */
 async function syncXueqiuPosts() {
   try {
-    // 获取目标用户ID
-    const targetUserId = await getSetting('XUEQIU_TARGET_USER_ID', '');
+    // 从用户表获取用户列表
+    const users = await getXueqiuUsers();
 
-    if (!targetUserId) {
-      // console.log('未设置雪球目标用户，跳过同步');
+    if (users.length === 0) {
+      console.log('没有需要同步的雪球用户');
       return;
     }
 
-    console.log(`开始同步雪球用户 ${targetUserId} 的帖子...`);
+    const userIds = users.map(u => u.user_id.toString());
 
-    // 获取用户所有页面的帖子
+    console.log(`开始同步 ${userIds.length} 个雪球用户的帖子...`);
+
+    // 遍历每个用户
+    for (const targetUserId of userIds) {
+      await syncSingleUser(targetUserId);
+    }
+
+    console.log(`批量同步完成`);
+  } catch (err) {
+    console.error('雪球同步失败:', err.message);
+  }
+}
+
+/**
+ * 同步单个用户
+ */
+async function syncSingleUser(targetUserId) {
+  try {
+    console.log(`同步用户 ${targetUserId}...`);
+
     const allPosts = [];
 
-    // 尝试获取前几页数据
-    for (let page = 1; page <= 5; page++) {
+    // 尝试获取所有页面的数据，直到没有更多
+    for (let page = 1; ; page++) {
       try {
         const result = await xueqiuService.getUserTimeline(targetUserId, page, 1);
 
         if (result.statuses && result.statuses.length > 0) {
-          allPosts.push(...result.statuses);
+          // 使用 parseTimelineResponse 处理数据
+          const parsed = xueqiuService.parseTimelineResponse(result);
+          allPosts.push(...parsed.statuses);
 
           // 如果没有更多页面，退出
           if (!result.maxPage || page >= result.maxPage) {
@@ -74,15 +95,32 @@ async function syncXueqiuPosts() {
     }
 
     if (allPosts.length > 0) {
-      // 保存到数据库
-      const userScreenName = allPosts[0]?.user?.screen_name || targetUserId.toString();
+      // 保存到数据库，去掉 -雪球 后缀
+      let userScreenName = allPosts[0]?.user?.screen_name || targetUserId.toString();
+      userScreenName = userScreenName.replace(/\s*[-–]\s*雪球$/, '').trim();
+
+      // 保存用户信息
+      const userInfo = allPosts[0]?.user;
+      if (userInfo) {
+        await saveXueqiuUser({
+          id: userInfo.id || parseInt(targetUserId),
+          user_id: parseInt(targetUserId),
+          screen_name: userScreenName,
+          profile_image_url: userInfo.profile_image_url,
+          description: userInfo.description,
+          followers_count: userInfo.followers_count,
+          friends_count: userInfo.friends_count,
+          statuses_count: userInfo.statuses_count
+        });
+      }
+
       await saveXueqiuPosts(allPosts, parseInt(targetUserId), userScreenName);
-      console.log(`同步完成: 用户 ${userScreenName}, 共 ${allPosts.length} 条帖子`);
+      console.log(`  ✓ ${userScreenName}: ${allPosts.length} 条帖子`);
     } else {
-      console.log(`用户 ${targetUserId} 没有新帖子`);
+      console.log(`  ○ 用户 ${targetUserId}: 无新帖子`);
     }
   } catch (err) {
-    console.error('雪球同步失败:', err.message);
+    console.error(`  ✗ 用户 ${targetUserId} 失败:`, err.message);
   }
 }
 

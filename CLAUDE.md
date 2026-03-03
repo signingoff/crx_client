@@ -493,8 +493,14 @@ backend (Express)
 ### 技术方案
 
 - **认证方式**: 用户提供 Cookie (xq_a_token)
-- **反爬措施**: Puppeteer 无头浏览器
+措施**: Pupp- **反爬eteer 无头浏览器
+- **数据库表**:
+  - `xueqiu_users` - 存储监控用户信息
+  - `xueqiu_posts` - 存储用户帖子
 - **API 端点**:
+  - `GET /api/xueqiu/users` - 获取用户列表
+  - `POST /api/xueqiu/users` - 添加用户
+  - `DELETE /api/xueqiu/users/:userId` - 删除用户
   - `GET /api/xueqiu/user/:userId` - 获取用户时间线
   - `GET /api/xueqiu/user/:userId/info` - 获取用户信息
 
@@ -503,9 +509,11 @@ backend (Express)
 | 文件 | 说明 |
 |------|------|
 | `backend/src/services/xueqiuService.js` | 雪球 API 服务 |
+| `backend/src/services/xueqiuSync.js` | 同步服务 |
 | `backend/src/routes/xueqiu.js` | 后端路由 |
-| `frontend/src/api/xueqiu.js` | 前端 API |
+| `backend/src/db/supabase.js` | 数据库操作 |
 | `frontend/src/views/XueqiuView.vue` | 雪球页面 |
+| `frontend/src/views/XueqiuSettingsView.vue` | 用户管理页面 |
 
 ### 雪球 API
 
@@ -524,11 +532,42 @@ https://xueqiu.com/v4/users/{id}
 XUEQIU_COOKIE=your_xq_a_token_here
 ```
 
+### 数据库表
+
+```sql
+-- 雪球用户表
+CREATE TABLE xueqiu_users (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT UNIQUE NOT NULL,
+  screen_name TEXT,
+  profile_image_url TEXT,
+  description TEXT,
+  followers_count INTEGER DEFAULT 0,
+  friends_count INTEGER DEFAULT 0,
+  statuses_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 雪球帖子表
+CREATE TABLE xueqiu_posts (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  user_screen_name TEXT,
+  text TEXT,
+  created_at TIMESTAMP WITH TIME ZONE,
+  reposts_count INTEGER DEFAULT 0,
+  comments_count INTEGER DEFAULT 0,
+  likes_count INTEGER DEFAULT 0,
+  source TEXT
+);
+```
+
 ### 注意事项
 
 - 雪球有反爬机制，需要使用 Puppeteer 绕过
 - Cookie 需要定期更新
-- 部分用户时间线可能需要登录才能访问
+- 添加用户时只保存 ID，后台自动同步更新用户名
+- 用户名自动去除 "-雪球" 后缀
 
 ## 更新日志
 

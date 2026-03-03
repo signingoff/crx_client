@@ -6,6 +6,9 @@
         <router-link to="/" class="nav-link" title="返回 X For You">
           🔙
         </router-link>
+        <router-link to="/xueqiu/settings" class="nav-link" title="用户管理">
+          ⚙️
+        </router-link>
       </div>
     </header>
 
@@ -47,12 +50,6 @@
       <img :src="getAvatarUrl(userInfo.profile_image_url)" :alt="userInfo.screen_name" class="avatar" />
       <div class="user-details">
         <h3>{{ userInfo.screen_name }}</h3>
-        <p v-if="userInfo.description">{{ userInfo.description }}</p>
-        <div class="user-stats">
-          <span>关注 {{ userInfo.friends_count }}</span>
-          <span>粉丝 {{ userInfo.followers_count }}</span>
-          <span>发帖 {{ userInfo.statuses_count }}</span>
-        </div>
       </div>
     </div>
 
@@ -113,11 +110,9 @@
             </span>
           </div>
 
-          <!-- 统计数据 -->
-          <div class="post-stats">
-            <span>💬 {{ post.comments_count || 0 }}</span>
-            <span>🔄 {{ post.reposts_count || 0 }}</span>
-            <span>❤️ {{ post.likes_count || 0 }}</span>
+          <!-- 发帖时间 -->
+          <div class="post-time">
+            {{ formatTime(post.created_at) }}
           </div>
         </div>
       </div>
@@ -146,11 +141,12 @@ const hasMore = ref(false)
 // 页面加载时获取设置的目标用户帖子
 onMounted(async () => {
   try {
-    // 获取设置的目标用户ID
-    const res = await axios.get('/api/settings/XUEQIU_TARGET_USER_ID')
-    if (res.data.success && res.data.data?.value) {
-      userId.value = res.data.data.value
+    // 从新 API 获取用户列表
+    const res = await axios.get('/api/xueqiu/users')
+    if (res.data.success && res.data.data?.length > 0) {
+      userId.value = res.data.data[0].user_id?.toString() || res.data.data[0].id
       await handleSearch()
+      return
     }
   } catch (err) {
     console.log('自动加载失败:', err.message)
@@ -183,23 +179,27 @@ async function handleSearch() {
     // 从数据库获取已保存的帖子
     const savedRes = await axios.get(`${API_BASE}/saved/${userId.value}`)
     if (savedRes.data.success && savedRes.data.data?.length > 0) {
-      posts.value = savedRes.data.data.map(post => ({
+      const savedPosts = savedRes.data.data
+      posts.value = savedPosts.map(post => ({
         id: post.id,
         text: post.text,
         created_at: post.created_at,
         user: {
           id: post.user_id,
           screen_name: post.user_screen_name,
-          profile_image_url: ''
+          profile_image_url: post.avatar || ''
         },
         reposts_count: post.reposts_count,
         comments_count: post.comments_count,
         likes_count: post.likes_count,
         source: post.source
       }))
+      // 使用第一个帖子获取用户信息
+      const firstPost = savedPosts[0]
       userInfo.value = {
-        id: post.user_id,
-        screen_name: post.user_screen_name
+        id: firstPost.user_id,
+        screen_name: firstPost.user_screen_name,
+        profile_image_url: firstPost.avatar || ''
       }
       maxPage.value = 1
       hasMore.value = false

@@ -65,14 +65,7 @@ async function getUserTimeline(userId, page = 1, type = 1) {
     });
 
     const json = await response.json();
-
-    if (json.statuses && json.statuses.length > 0) {
-      // 保存帖子到数据库
-      const { saveXueqiuPosts } = await import('../db/supabase.js');
-      const numericUserId = userId.toString().match(/^\d+$/) ? parseInt(userId) : null;
-      const userScreenName = json.statuses[0]?.user?.screen_name || userId.toString();
-      await saveXueqiuPosts(json.statuses, numericUserId, userScreenName).catch(e => console.log('保存帖子失败:', e.message));
-    }
+    return json;
 
     await page2.close();
     await context.close();
@@ -112,7 +105,10 @@ async function getUserInfoByScreenName(screenName) {
       if (window.SNOW && window.SNOW.user) {
         return window.SNOW.user;
       }
-      return { screen_name: document.title.replace(' 的主页 - 雪球', '') || '未知用户' };
+      let name = document.title.replace(' 的主页 - 雪球', '') || '未知用户';
+      // 去掉 -雪球 后缀
+      name = name.replace(/\s*[-–]\s*雪球$/, '').trim();
+      return { screen_name: name };
     });
 
     await page2.close();
@@ -130,13 +126,17 @@ async function getUserInfoByScreenName(screenName) {
  * 统一数据格式
  */
 function parseTimelineItem(item) {
+  let screenName = item.user?.screen_name || item.user?.name || '';
+  // 去掉 -雪球 后缀
+  screenName = screenName.replace(/\s*[-–]\s*雪球$/, '').trim();
+
   return {
     id: item.id,
     text: item.text || item.description || '',
     created_at: item.created_at,
     user: {
       id: item.user?.id,
-      screen_name: item.user?.screen_name || item.user?.name,
+      screen_name: screenName,
       profile_image_url: item.user?.profile_image_url?.replace('_square', '_small'),
       description: item.user?.description,
       followers_count: item.user?.followers_count,
