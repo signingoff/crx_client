@@ -3,7 +3,7 @@ services:
     name: x-for-you-backend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm install
+    buildCommand: cd backend && npm install && npx playwright install chromium
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_VERSION
