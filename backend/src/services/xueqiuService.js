@@ -1,16 +1,21 @@
-import { chromium } from 'playwright';
 import axios from 'axios';
 
 let browser = null;
-let useAxios = false; // 备用方案标记
+let playwright = null;
+let useAxios = true; // 默认使用 axios
 
 /**
  * 获取或创建浏览器实例
  */
 async function getBrowser() {
-  if (useAxios) return null; // 使用备用方案
+  if (useAxios) return null;
+
   if (!browser) {
     try {
+      if (!playwright) {
+        playwright = await import('playwright');
+      }
+      const chromium = playwright.chromium;
       browser = await chromium.launch({
         headless: true,
         args: [
@@ -21,7 +26,7 @@ async function getBrowser() {
         ]
       });
     } catch (err) {
-      console.log('Playwright 启动失败，使用备用方案:', err.message);
+      console.log('Playwright 不可用，使用 axios 方案:', err.message);
       useAxios = true;
       return null;
     }
