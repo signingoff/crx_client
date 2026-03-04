@@ -163,23 +163,22 @@ router.get('/saved/:userId', async (req, res) => {
     const { userId } = req.params;
     const posts = await getXueqiuPosts(parseInt(userId), 500);
 
-    // 优先从用户表获取头像
-    let avatar = '';
-    const user = await getXueqiuUser(parseInt(userId));
-    if (user?.profile_image_url) {
-      let url = user.profile_image_url;
-      if (!url.startsWith('http')) {
-        const firstUrl = url.split(',')[0];
-        avatar = 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
-      } else {
-        avatar = url;
-      }
+    // 统一头像 URL 格式：非 http 路径补全域名和尺寸后缀
+    function normalizeAvatar(url) {
+      if (!url) return '';
+      const firstUrl = url.split(',')[0];
+      if (firstUrl.startsWith('http')) return firstUrl;
+      return 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
     }
 
-    // 为每个帖子添加头像
+    // 优先从用户表获取头像作为 fallback
+    const user = await getXueqiuUser(parseInt(userId));
+    const fallbackAvatar = normalizeAvatar(user?.profile_image_url || '');
+
+    // 为每个帖子规范化头像 URL
     const postsWithAvatar = posts.map(post => ({
       ...post,
-      avatar: post.avatar || avatar
+      avatar: normalizeAvatar(post.avatar) || fallbackAvatar
     }));
 
     res.json({
@@ -215,8 +214,9 @@ router.get('/users', async (req, res) => {
     await ensureXueqiuUsersTable();
     const users = await getXueqiuUsers();
 
-    // 一次性获取所有用户的帖子数
-    const postCounts = await getXueqiuUserPostCounts();
+    // 按用户 ID 逐个 count 查询，避免全表扫描
+    const userIds = users.map(u => u.user_id);
+    const postCounts = await getXueqiuUserPostCounts(userIds);
 
     // 直接返回用户表中的数据
     const result = users.map(u => ({
@@ -302,8 +302,8 @@ router.post('/users', async (req, res) => {
 
     const result = await saveXueqiuUser(user);
 
-    // 触发同步
-    await triggerSync();
+    // 后台异步触发同步，不阻塞响应
+    triggerSync().catch(err => console.error('同步失败:', err.message));
 
     res.json({
       success: result,

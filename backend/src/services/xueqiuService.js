@@ -117,10 +117,54 @@ async function getUserTimeline(userId, page = 1, type = 1) {
 }
 
 /**
- * 通过用户名获取用户信息
+ * 通过 axios 获取用户信息（axios 模式）
+ */
+async function getUserInfoByAxios(userId) {
+  try {
+    const cookie = await getCookie();
+    const response = await axios.get(
+      `https://xueqiu.com/v4/users/${userId}`,
+      {
+        headers: {
+          'Cookie': `xq_a_token=${cookie}`,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://xueqiu.com/'
+        },
+        timeout: 30000
+      }
+    );
+    const user = response.data?.user || response.data;
+    let screenName = user?.screen_name || user?.name || String(userId);
+    screenName = screenName.replace(/\s*[-–]\s*雪球$/, '').trim();
+    return {
+      id: user?.id || userId,
+      screen_name: screenName,
+      profile_image_url: user?.profile_image_url,
+      description: user?.description,
+      followers_count: user?.followers_count,
+      friends_count: user?.friends_count,
+      statuses_count: user?.statuses_count
+    };
+  } catch (e) {
+    console.log('axios 获取用户信息失败:', e.message);
+    return { id: userId, screen_name: String(userId) };
+  }
+}
+
+/**
+ * 通过用户名/ID 获取用户信息
  */
 async function getUserInfoByScreenName(screenName) {
+  // axios 模式：直接用 API 获取
+  if (useAxios) {
+    return getUserInfoByAxios(screenName);
+  }
+
   const b = await getBrowser();
+  if (!b) {
+    return getUserInfoByAxios(screenName);
+  }
+
   const context = await b.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   });

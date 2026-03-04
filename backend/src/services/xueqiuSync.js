@@ -1,14 +1,13 @@
-import { getSetting } from '../db/index.js';
 import xueqiuService from './xueqiuService.js';
-import { saveXueqiuPosts, saveXueqiuUser, getXueqiuUsers } from '../db/supabase.js';
+import { saveXueqiuPosts, saveXueqiuUser, getXueqiuUsers, getLatestPostId } from '../db/supabase.js';
 
 let syncInterval = null;
 
 /**
  * 开始雪球帖子同步任务
- * @param {number} intervalMs - 同步间隔（毫秒），默认 10 秒
+ * @param {number} intervalMs - 同步间隔（毫秒），默认 5 分钟
  */
-export function startXueqiuSync(intervalMs = 10000) {
+export function startXueqiuSync(intervalMs = 300000) {
   if (syncInterval) {
     console.log('雪球同步任务已在运行中');
     return;
@@ -63,44 +62,62 @@ async function syncXueqiuPosts() {
 }
 
 /**
- * 同步单个用户
+ * 同步单个用户（增量同步：遇到已存在的帖子即停止翻页）
  */
 async function syncSingleUser(targetUserId) {
   try {
     console.log(`同步用户 ${targetUserId}...`);
 
-    const allPosts = [];
+    // 获取数据库中该用户最新帖子 ID，用于增量判断
+    const latestKnownId = await getLatestPostId(parseInt(targetUserId));
+    const isFirstSync = !latestKnownId;
 
-    // 尝试获取所有页面的数据，直到没有更多
-    const maxPages = 50; // 最多获取50页
+    const newPosts = [];
+    let reachedKnown = false;
+
+    // 首次同步最多50页，增量同步最多10页（新帖子不会超过10页）
+    const maxPages = isFirstSync ? 50 : 10;
+
     for (let page = 1; page <= maxPages; page++) {
+      let result;
       try {
-        const result = await xueqiuService.getUserTimeline(targetUserId, page, 1);
-
-        console.log(`用户 ${targetUserId} 第 ${page} 页: ${result.statuses?.length || 0} 条`);
-
-        if (result.statuses && result.statuses.length > 0) {
-          // 使用 parseTimelineResponse 处理数据
-          const parsed = xueqiuService.parseTimelineResponse(result);
-          allPosts.push(...parsed.statuses);
-        } else {
-          console.log(`用户 ${targetUserId} 共 ${allPosts.length} 条，无更多数据`);
-          break;
-        }
+        result = await xueqiuService.getUserTimeline(targetUserId, page, 1);
       } catch (e) {
         console.log(`获取第 ${page} 页失败: ${e.message}`);
         break;
       }
-    }
-    console.log(`用户 ${targetUserId} 共 ${allPosts.length} 条`);
 
-    if (allPosts.length > 0) {
-      // 保存到数据库，去掉 -雪球 后缀
-      let userScreenName = allPosts[0]?.user?.screen_name || targetUserId.toString();
+      const statuses = result.statuses || [];
+      console.log(`用户 ${targetUserId} 第 ${page} 页: ${statuses.length} 条`);
+
+      if (statuses.length === 0) {
+        break;
+      }
+
+      const parsed = xueqiuService.parseTimelineResponse(result);
+
+      for (const post of parsed.statuses) {
+        // 遇到已知帖子（ID <= latestKnownId）说明后面都是旧数据，停止
+        if (latestKnownId && post.id <= latestKnownId) {
+          reachedKnown = true;
+          break;
+        }
+        newPosts.push(post);
+      }
+
+      if (reachedKnown) {
+        console.log(`用户 ${targetUserId} 已追上最新同步位置，停止翻页`);
+        break;
+      }
+    }
+
+    console.log(`用户 ${targetUserId} 新增 ${newPosts.length} 条`);
+
+    if (newPosts.length > 0) {
+      let userScreenName = newPosts[0]?.user?.screen_name || targetUserId.toString();
       userScreenName = userScreenName.replace(/\s*[-–]\s*雪球$/, '').trim();
 
-      // 保存用户信息
-      const userInfo = allPosts[0]?.user;
+      const userInfo = newPosts[0]?.user;
       if (userInfo) {
         await saveXueqiuUser({
           id: userInfo.id || parseInt(targetUserId),
@@ -114,8 +131,8 @@ async function syncSingleUser(targetUserId) {
         });
       }
 
-      await saveXueqiuPosts(allPosts, parseInt(targetUserId), userScreenName);
-      console.log(`  ✓ ${userScreenName}: ${allPosts.length} 条帖子`);
+      await saveXueqiuPosts(newPosts, parseInt(targetUserId), userScreenName);
+      console.log(`  ✓ ${userScreenName}: 新增 ${newPosts.length} 条`);
     } else {
       console.log(`  ○ 用户 ${targetUserId}: 无新帖子`);
     }

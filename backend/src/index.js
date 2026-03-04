@@ -41,7 +41,7 @@ app.use('/api/tweets', tweetsRouter);
 const settingsRouter = (await import('./routes/settings-db.js')).default;
 app.use('/api/settings', settingsRouter);
 
-// 雪球网路由 - 使用 Puppeteer
+// 雪球网路由
 const xueqiuRouter = (await import('./routes/xueqiu.js')).default;
 app.use('/api/xueqiu', xueqiuRouter);
 

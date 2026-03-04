@@ -69,7 +69,7 @@
           <span class="status" :class="syncing ? 'syncing' : 'idle'">
             {{ syncing ? '🔄 同步中...' : '✓ 等待同步' }}
           </span>
-          <span class="interval">每 10 秒自动同步</span>
+          <span class="interval">每 5 分钟自动同步</span>
         </div>
         <button class="btn-sync" @click="triggerSync" :disabled="syncing">
           🔄 立即同步
@@ -154,9 +154,6 @@ async function addUser() {
 
     showMessage('✅ 添加成功，后台正在同步...', 'success')
     newUserId.value = ''
-
-    // 触发同步
-    await triggerSync()
   } catch (err) {
     showMessage('❌ 添加失败: ' + err.message, 'error')
   }
@@ -170,8 +167,6 @@ async function removeUser(id) {
     const idStr = String(id)
     userList.value = userList.value.filter(u => String(u.user_id) !== idStr)
     showMessage('✅ 已删除', 'success')
-
-    await triggerSync()
   } catch (err) {
     showMessage('❌ 删除失败: ' + err.message, 'error')
   }
@@ -182,14 +177,8 @@ async function triggerSync() {
   try {
     await axios.get(`${API_BASE}/xueqiu/sync`)
     showMessage('✅ 同步完成', 'success')
-
-    // 刷新帖子数
-    for (const user of userList.value) {
-      try {
-        const postsRes = await axios.get(`${API_BASE}/xueqiu/saved/${user.id}`)
-        user.postCount = postsRes.data.success ? (postsRes.data.data?.length || 0) : 0
-      } catch (e) {}
-    }
+    // 一次性刷新用户列表（含最新帖子数）
+    await loadUsers()
   } catch (err) {
     showMessage('❌ 同步失败: ' + err.message, 'error')
   } finally {

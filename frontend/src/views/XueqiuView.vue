@@ -14,7 +14,7 @@
 
     <!-- Cookie 配置 -->
     <div class="cookie-bar">
-      <span class="cookie-tip">❄️ 使用 Puppeteer 无头浏览器绕过反爬</span>
+      <span class="cookie-tip">❄️ 使用 Playwright 无头浏览器绕过反爬</span>
     </div>
 
     <!-- 用户输入区 -->
@@ -124,6 +124,7 @@
 import { ref, onMounted } from 'vue'
 import { fetchUserTimeline, fetchUserInfo, fetchAllTimeline } from '../api/xueqiu.js'
 import axios from 'axios'
+import DOMPurify from 'dompurify'
 
 const API_BASE = '/api/xueqiu'
 
@@ -270,19 +271,14 @@ function formatTime(timestamp) {
  */
 function getAvatarUrl(url) {
   if (!url) return ''
-  // 取第一个（原始尺寸）
   const firstUrl = url.split(',')[0]
-  // 如果已经是完整 URL 直接返回
   if (firstUrl.startsWith('http')) return firstUrl
-  // 添加雪球域名
-  return 'https://xqimg.imedao.com/' + firstUrl
+  return 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg'
 }
 
 function parseText(text) {
   if (!text) return ''
 
-  // 雪球返回的 text 已经是 HTML 格式，不需要再转义
-  // 直接返回，让 v-html 渲染
   let html = text
 
   // 对未转义的 @用户名 添加链接
@@ -294,7 +290,11 @@ function parseText(text) {
   // 对未转义的 $股票 添加链接
   html = html.replace(/(?<!<a[^>]*>)\$([A-Z][a-zA-Z0-9]+)(?![^<]*<\/a>)/g, '<span class="symbol">$$$1</span>')
 
-  return html
+  // 过滤 XSS，保留安全的 HTML 标签
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['a', 'b', 'strong', 'i', 'em', 'br', 'span', 'p'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+  })
 }
 </script>
 

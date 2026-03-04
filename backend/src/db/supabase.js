@@ -488,25 +488,65 @@ export async function getXueqiuPosts(userId, limit = 100) {
 }
 
 /**
- * 获取所有用户的帖子数统计
+ * 获取用户最新帖子的 ID（用于增量同步）
+ * @param {number} userId - 用户ID
+ * @returns {Promise<number|null>}
  */
-export async function getXueqiuUserPostCounts() {
-  if (!supabase) return {};
+export async function getLatestPostId(userId) {
+  if (!supabase) return null;
 
   try {
     const { data, error } = await supabase
       .from(XUEQIU_POSTS_TABLE)
-      .select('user_id')
-      .order('created_at', { ascending: false });
+      .select('id')
+      .eq('user_id', userId)
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data?.id || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * 获取指定用户的帖子数
+ * @param {number} userId - 用户ID
+ * @returns {Promise<number>}
+ */
+export async function getXueqiuUserPostCount(userId) {
+  if (!supabase) return 0;
+
+  try {
+    const { count, error } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
 
     if (error) throw error;
+    return count || 0;
+  } catch (err) {
+    return 0;
+  }
+}
 
-    // 按 user_id 分组统计
+/**
+ * 获取所有用户的帖子数统计（逐用户查询，避免全表扫描）
+ * @param {number[]} userIds - 用户ID列表
+ * @returns {Promise<Object>}
+ */
+export async function getXueqiuUserPostCounts(userIds = []) {
+  if (!supabase) return {};
+
+  try {
     const counts = {};
-    for (const post of (data || [])) {
-      counts[post.user_id] = (counts[post.user_id] || 0) + 1;
-    }
-
+    await Promise.all(
+      userIds.map(async (uid) => {
+        counts[uid] = await getXueqiuUserPostCount(uid);
+      })
+    );
     return counts;
   } catch (err) {
     console.error('获取用户帖子数统计失败:', err.message);
