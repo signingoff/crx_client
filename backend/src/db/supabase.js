@@ -144,7 +144,6 @@ export async function ensureXueqiuPostsTable() {
       .insert({
         id: Date.now(),
         user_id: 0,
-        user_screen_name: '__check__',
         text: '__check__',
         created_at: Date.now()
       })
@@ -152,7 +151,7 @@ export async function ensureXueqiuPostsTable() {
 
     if (!insertError) {
       // 成功插入，清理测试数据
-      await supabase.from(XUEQIU_POSTS_TABLE).delete().eq('user_screen_name', '__check__');
+      await supabase.from(XUEQIU_POSTS_TABLE).delete().eq('text', '__check__').eq('user_id', 0);
       tableChecked = true;
       tableReady = true;
       return true;
