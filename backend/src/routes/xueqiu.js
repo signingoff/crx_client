@@ -163,27 +163,9 @@ router.get('/saved/:userId', async (req, res) => {
     const { userId } = req.params;
     const posts = await getXueqiuPosts(parseInt(userId), 500);
 
-    // 统一头像 URL 格式：非 http 路径补全域名和尺寸后缀
-    function normalizeAvatar(url) {
-      if (!url) return '';
-      const firstUrl = url.split(',')[0];
-      if (firstUrl.startsWith('http')) return firstUrl;
-      return 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
-    }
-
-    // 优先从用户表获取头像作为 fallback
-    const user = await getXueqiuUser(parseInt(userId));
-    const fallbackAvatar = normalizeAvatar(user?.profile_image_url || '');
-
-    // 为每个帖子规范化头像 URL
-    const postsWithAvatar = posts.map(post => ({
-      ...post,
-      avatar: normalizeAvatar(post.avatar) || fallbackAvatar
-    }));
-
     res.json({
       success: true,
-      data: postsWithAvatar
+      data: posts
     });
   } catch (err) {
     res.status(500).json({
@@ -202,23 +184,12 @@ router.get('/posts', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
 
-    function normalizeAvatar(url) {
-      if (!url) return '';
-      const firstUrl = url.split(',')[0];
-      if (firstUrl.startsWith('http')) return firstUrl;
-      return 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
-    }
-
     const { posts, total } = await getAllXueqiuPosts(page, limit);
-    const normalizedPosts = posts.map(post => ({
-      ...post,
-      avatar: normalizeAvatar(post.avatar)
-    }));
 
     res.json({
       success: true,
       data: {
-        posts: normalizedPosts,
+        posts,
         total,
         page,
         hasMore: page * limit < total
