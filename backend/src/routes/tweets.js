@@ -1,63 +1,9 @@
 import { Router } from 'express';
-import { getForYouTweets, getFollowingTweets } from '../services/xService.js';
-import {
-  markPostAsRead,
-  getReadStats,
-  isPostRead,
-  setSetting
-} from '../db/index.js';
+import { setSetting } from '../db/index.js';
 import { getConfig, loadConfigFromDB } from '../config/settingsConfig.js';
 import { fetchQueryIdsFromX } from '../services/queryIdFetcher.js';
 
 const router = Router();
-
-/**
- * GET /api/tweets/for-you
- * 获取 For You 和 Following 页面的推文，合并后返回
- */
-router.get('/for-you', async (req, res) => {
-  try {
-    const count = parseInt(req.query.count) || 20;
-
-    // 并行获取 For You 和 Following 的推文
-    const [forYouTweets, followingTweets] = await Promise.all([
-      getForYouTweets(count),
-      getFollowingTweets(count)
-    ]);
-
-    // 合并推文
-    const allTweets = [...forYouTweets, ...followingTweets];
-
-    // 根据 tweet.id 去重
-    const uniqueTweetsMap = new Map();
-    for (const tweet of allTweets) {
-      if (!uniqueTweetsMap.has(tweet.id)) {
-        uniqueTweetsMap.set(tweet.id, tweet);
-      }
-    }
-
-    // 转换为数组并按时间排序（最新的在前）
-    const uniqueTweets = Array.from(uniqueTweetsMap.values()).sort((a, b) => {
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-
-    res.json({
-      success: true,
-      count: uniqueTweets.length,
-      sources: {
-        forYou: forYouTweets.length,
-        following: followingTweets.length
-      },
-      data: uniqueTweets
-    });
-  } catch (error) {
-    console.error('Error in /for-you route:', error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
 
 /**
  * GET /api/tweets/health
@@ -68,81 +14,6 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Backend is running'
   });
-});
-
-/**
- * POST /api/tweets/mark-read
- * 标记推文为已读/未读（连续单击3次时调用）
- * Body: { tweetId: string, isRead: boolean }
- */
-router.post('/mark-read', async (req, res) => {
-  const { tweetId, isRead } = req.body;
-
-  if (!tweetId) {
-    return res.status(400).json({
-      success: false,
-      error: '需要提供 tweetId'
-    });
-  }
-
-  const readStatus = isRead !== false; // 默认为 true
-  await markPostAsRead(tweetId, readStatus);
-  const stats = await getReadStats();
-
-  res.json({
-    success: true,
-    message: readStatus ? '已标记为已读' : '已标记为未读',
-    isRead: readStatus,
-    stats
-  });
-});
-
-/**
- * GET /api/tweets/read-stats
- * 获取已读/未读统计
- */
-router.get('/read-stats', async (req, res) => {
-  const stats = await getReadStats();
-  res.json({
-    success: true,
-    data: stats
-  });
-});
-
-/**
- * POST /api/tweets/read-status
- * 批量查询推文的已读状态
- * Body: { tweetIds: string[] }
- */
-router.post('/read-status', async (req, res) => {
-  try {
-    const { tweetIds } = req.body;
-
-    if (!Array.isArray(tweetIds) || tweetIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: '需要提供 tweetIds 数组'
-      });
-    }
-
-    // 查询每个推文的已读状态
-    const statusMap = {};
-    for (const tweetId of tweetIds) {
-      const isRead = await isPostRead(tweetId);
-      statusMap[tweetId] = isRead;
-    }
-
-    res.json({
-      success: true,
-      data: statusMap
-    });
-  } catch (error) {
-    console.error('Error fetching read status:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || '查询已读状态失败'
-    });
-  }
 });
 
 /**
