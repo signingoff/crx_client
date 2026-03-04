@@ -4,6 +4,8 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import { validateCookies } from './config/auth.js';
+import { startXueqiuSync } from './services/xueqiuSync.js';
+import { startTwitterSync } from './services/twitterSync.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,8 +48,6 @@ const xueqiuRouter = (await import('./routes/xueqiu.js')).default;
 app.use('/api/xueqiu', xueqiuRouter);
 
 // 启动雪球帖子同步任务
-import { startXueqiuSync } from './services/xueqiuSync.js';
-import { startTwitterSync } from './services/twitterSync.js';
 startXueqiuSync(300000); // 每 5 分钟同步一次
 
 // Twitter 路由
