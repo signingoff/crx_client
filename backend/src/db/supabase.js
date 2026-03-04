@@ -623,6 +623,9 @@ export async function getXueqiuUserPostCounts(userIds = []) {
   }
 }
 
+/**
+ * Twitter 推文相关功能
+ */
 const TWITTER_POSTS_TABLE = 'twitter_posts';
 
 /**
@@ -635,14 +638,11 @@ export async function saveTwitterPosts(posts) {
     const { error } = await supabase
       .from(TWITTER_POSTS_TABLE)
       .upsert(posts, { onConflict: 'id', ignoreDuplicates: false });
-    if (error) {
-      console.error('保存 Twitter 推文失败:', error.message);
-      return false;
-    }
+    if (error) throw error;
     console.log(`保存 ${posts.length} 条 Twitter 推文`);
     return true;
   } catch (err) {
-    console.error('保存 Twitter 推文异常:', err.message);
+    console.error('保存 Twitter 推文失败:', err.message);
     return false;
   }
 }
@@ -651,6 +651,7 @@ export async function saveTwitterPosts(posts) {
  * 获取 Twitter 推文（分页）
  * @param {number} page - 页码（从1开始）
  * @param {number} limit - 每页数量
+ * @returns {Promise<{posts: Array, total: number}>}
  */
 export async function getAllTwitterPosts(page = 1, limit = 20) {
   if (!supabase) return { posts: [], total: 0 };
