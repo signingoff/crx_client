@@ -51,7 +51,7 @@ async function syncTwitterPosts() {
 
     // 转换为 DB 格式
     const dbPosts = uniqueTweets.map(tweet => ({
-      id: tweet.id,
+      tweet_id: tweet.id,
       text: tweet.text,
       created_at: new Date(tweet.createdAt).toISOString(),
       user_id: tweet.author?.id || tweet.author?.username || '',

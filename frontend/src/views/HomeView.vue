@@ -55,7 +55,7 @@ let refreshInterval = null
 
 function normalizeTwitterPost(post) {
   return {
-    id: post.id,
+    id: post.tweet_id,
     text: post.text,
     createdAt: new Date(post.created_at).toISOString(),
     source: 'twitter',
