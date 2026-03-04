@@ -226,7 +226,7 @@ function openTweetLink() {
   if (props.tweet.source === 'xueqiu') {
     window.open(`https://xueqiu.com/${props.tweet.userId}/${props.tweet.id}`, '_blank')
   } else {
-    window.open(`https://x.com/${props.tweet.author.username}/status/${props.tweet.id}`, '_blank')
+    window.open(`https://x.com/${props.tweet.userId}/status/${props.tweet.id}`, '_blank')
   }
 }
 

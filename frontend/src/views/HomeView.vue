@@ -60,6 +60,7 @@ function normalizeTwitterPost(post) {
     createdAt: new Date(post.created_at).toISOString(),
     source: 'twitter',
     is_read: post.is_read || false,
+    userId: post.user_id,
     author: {
       name: post.user_name,
       username: post.user_screen_name,
