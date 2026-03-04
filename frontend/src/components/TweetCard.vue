@@ -106,7 +106,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { markTweetAsRead, markTweetAsUnread } from '../api/tweets.js'
+import { markTwitterPostRead, markXueqiuPostRead } from '../api/tweets.js'
 
 const props = defineProps({
   tweet: {
@@ -128,7 +128,7 @@ const emit = defineEmits(['select-tweet', 'update:isRead'])
 const lightboxOpen = ref(false)
 const lightboxImage = ref(null)
 // 内部已读状态（用于三连击切换）
-const internalIsRead = ref(props.isRead)
+const internalIsRead = ref(props.tweet.is_read || props.isRead || false)
 
 // 计算实际的已读状态（优先使用外部传入的）
 const actualIsRead = computed(() => {
@@ -264,10 +264,10 @@ async function handleTripleClick() {
     emit('update:isRead', newReadState)
 
     try {
-      if (newReadState) {
-        await markTweetAsRead(props.tweet.id)
+      if (props.tweet.source === 'xueqiu') {
+        await markXueqiuPostRead(props.tweet.id, newReadState)
       } else {
-        await markTweetAsUnread(props.tweet.id)
+        await markTwitterPostRead(props.tweet.id, newReadState)
       }
     } catch (err) {
       console.error('标记已读/未读失败:', err)
