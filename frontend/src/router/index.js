@@ -24,6 +24,11 @@ const routes = [
     path: '/xueqiu/settings',
     name: 'XueqiuSettings',
     component: XueqiuSettingsView
+  },
+  {
+    path: '/xueqiu/user/:userId',
+    name: 'XueqiuUser',
+    component: () => import('../views/XueqiuUserView.vue')
   }
 ]
 

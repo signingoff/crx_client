@@ -1,6 +1,6 @@
 import express from 'express';
 import xueqiuService from '../services/xueqiuService.js';
-import { ensureXueqiuPostsTable, getXueqiuPosts, getXueqiuUsers, getXueqiuUser, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts } from '../db/supabase.js';
+import { ensureXueqiuPostsTable, getXueqiuPosts, getAllXueqiuPosts, getXueqiuUsers, getXueqiuUser, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts } from '../db/supabase.js';
 import { triggerSync } from '../services/xueqiuSync.js';
 
 const router = express.Router();
@@ -190,6 +190,42 @@ router.get('/saved/:userId', async (req, res) => {
       success: false,
       error: err.message
     });
+  }
+});
+
+/**
+ * 获取所有用户的聚合帖子（分页）
+ * GET /api/xueqiu/posts?page=1&limit=20
+ */
+router.get('/posts', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+
+    function normalizeAvatar(url) {
+      if (!url) return '';
+      const firstUrl = url.split(',')[0];
+      if (firstUrl.startsWith('http')) return firstUrl;
+      return 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg';
+    }
+
+    const { posts, total } = await getAllXueqiuPosts(page, limit);
+    const normalizedPosts = posts.map(post => ({
+      ...post,
+      avatar: normalizeAvatar(post.avatar)
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        posts: normalizedPosts,
+        total,
+        page,
+        hasMore: page * limit < total
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

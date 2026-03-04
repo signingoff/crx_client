@@ -488,6 +488,32 @@ export async function getXueqiuPosts(userId, limit = 100) {
 }
 
 /**
+ * 获取所有用户的雪球帖子（分页）
+ * @param {number} page - 页码（从1开始）
+ * @param {number} limit - 每页数量
+ */
+export async function getAllXueqiuPosts(page = 1, limit = 20) {
+  if (!supabase) return { posts: [], total: 0 };
+
+  try {
+    const from = (page - 1) * limit;
+    const to = page * limit - 1;
+
+    const { data, count, error } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    return { posts: data || [], total: count || 0 };
+  } catch (err) {
+    console.error('获取所有雪球帖子失败:', err.message);
+    return { posts: [], total: 0 };
+  }
+}
+
+/**
  * 获取用户最新帖子的 ID（用于增量同步）
  * @param {number} userId - 用户ID
  * @returns {Promise<number|null>}

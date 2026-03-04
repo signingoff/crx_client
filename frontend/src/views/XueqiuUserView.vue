@@ -1,24 +1,23 @@
 <template>
-  <div class="xueqiu">
+  <div class="xueqiu-user">
     <header class="header">
-      <h1>❄️ 雪球网发言</h1>
-      <div class="header-actions">
-        <router-link to="/" class="nav-link" title="返回 X For You">🔙</router-link>
-        <router-link to="/xueqiu/settings" class="nav-link" title="用户管理">⚙️</router-link>
+      <button class="back-btn" @click="router.push('/xueqiu')" title="返回">🔙</button>
+      <div v-if="userInfo" class="header-user">
+        <img :src="userInfo.avatar" :alt="userInfo.name" class="header-avatar" />
+        <span class="header-name">{{ userInfo.name }}</span>
       </div>
+      <div v-else class="header-title">用户详情</div>
     </header>
 
     <!-- 帖子列表 -->
     <div class="content">
       <div v-if="loading && posts.length === 0" class="status-tip">加载中...</div>
       <div v-else-if="error" class="status-tip error">{{ error }}</div>
-      <div v-else-if="posts.length === 0 && !loading" class="status-tip">
-        暂无帖子，请先在设置页面添加用户
-      </div>
+      <div v-else-if="posts.length === 0 && !loading" class="status-tip">暂无帖子</div>
 
       <div class="post-list">
         <div
-          v-for="post in posts"
+          v-for="post in displayedPosts"
           :key="post.id"
           class="post-card"
         >
@@ -27,12 +26,9 @@
               :src="post.avatar || ''"
               :alt="post.user_screen_name"
               class="post-avatar"
-              @click="goToUser(post.user_id)"
             />
             <div class="post-user-info">
-              <span class="post-username" @click="goToUser(post.user_id)">
-                {{ post.user_screen_name }}
-              </span>
+              <span class="post-username">{{ post.user_screen_name }}</span>
               <span class="post-time">{{ formatTime(post.created_at) }}</span>
             </div>
           </div>
@@ -45,32 +41,44 @@
       <div ref="sentinel" class="sentinel"></div>
 
       <!-- 底部状态 -->
-      <div v-if="loading && posts.length > 0" class="status-tip">加载中...</div>
-      <div v-else-if="!hasMore && posts.length > 0" class="status-tip muted">没有更多了</div>
+      <div v-if="!hasMore && posts.length > 0" class="status-tip muted">没有更多了</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import DOMPurify from 'dompurify'
 
 const API_BASE = '/api/xueqiu'
+const route = useRoute()
 const router = useRouter()
+
+const userId = route.params.userId
 
 const posts = ref([])
 const page = ref(1)
-const hasMore = ref(true)
+const PAGE_SIZE = 30
 const loading = ref(false)
 const error = ref('')
 const sentinel = ref(null)
 
 let observer = null
 
+const hasMore = computed(() => page.value * PAGE_SIZE < posts.value.length || loading.value)
+
+const displayedPosts = computed(() => posts.value.slice(0, page.value * PAGE_SIZE))
+
+const userInfo = computed(() => {
+  if (!posts.value.length) return null
+  const first = posts.value[0]
+  return { name: first.user_screen_name, avatar: first.avatar || '' }
+})
+
 onMounted(async () => {
-  await loadPosts(1)
+  await loadPosts()
   setupObserver()
 })
 
@@ -78,18 +86,13 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
-async function loadPosts(pageNum) {
-  if (loading.value || !hasMore.value) return
-
+async function loadPosts() {
   loading.value = true
   error.value = ''
   try {
-    const res = await axios.get(`${API_BASE}/posts`, { params: { page: pageNum, limit: 20 } })
+    const res = await axios.get(`${API_BASE}/saved/${userId}`)
     if (res.data.success) {
-      const { posts: newPosts, hasMore: more } = res.data.data
-      posts.value = pageNum === 1 ? newPosts : [...posts.value, ...newPosts]
-      hasMore.value = more
-      page.value = pageNum
+      posts.value = res.data.data || []
     } else {
       error.value = res.data.error || '加载失败'
     }
@@ -102,18 +105,14 @@ async function loadPosts(pageNum) {
 
 function setupObserver() {
   observer = new IntersectionObserver(
-    async (entries) => {
-      if (entries[0].isIntersecting && hasMore.value && !loading.value) {
-        await loadPosts(page.value + 1)
+    (entries) => {
+      if (entries[0].isIntersecting && page.value * PAGE_SIZE < posts.value.length) {
+        page.value++
       }
     },
     { rootMargin: '200px' }
   )
   if (sentinel.value) observer.observe(sentinel.value)
-}
-
-function goToUser(userId) {
-  router.push(`/xueqiu/user/${userId}`)
 }
 
 function formatTime(timestamp) {
@@ -151,7 +150,7 @@ function parseText(text) {
 </script>
 
 <style scoped>
-.xueqiu {
+.xueqiu-user {
   max-width: 800px;
   margin: 0 auto;
   background: #fff;
@@ -160,8 +159,8 @@ function parseText(text) {
 
 .header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid #e1e8ed;
   background: #fff;
@@ -170,28 +169,43 @@ function parseText(text) {
   z-index: 10;
 }
 
-h1 {
-  margin: 0;
-  font-size: 20px;
-  color: #0f1419;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.nav-link {
-  text-decoration: none;
+.back-btn {
+  background: none;
+  border: none;
   font-size: 18px;
   padding: 6px;
   border-radius: 50%;
+  cursor: pointer;
   transition: background 0.2s;
+  flex-shrink: 0;
 }
 
-.nav-link:hover {
+.back-btn:hover {
   background: #e1e8ed;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.header-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f1419;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f1419;
 }
 
 .content {
@@ -239,13 +253,7 @@ h1 {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  cursor: pointer;
-  transition: opacity 0.2s;
   flex-shrink: 0;
-}
-
-.post-avatar:hover {
-  opacity: 0.8;
 }
 
 .post-user-info {
@@ -257,11 +265,6 @@ h1 {
   font-weight: 600;
   color: #0f1419;
   font-size: 15px;
-  cursor: pointer;
-}
-
-.post-username:hover {
-  text-decoration: underline;
 }
 
 .post-time {
