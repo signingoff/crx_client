@@ -191,7 +191,8 @@ router.post('/posts/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
     const { isRead = true } = req.body;
-    await markXueqiuPostRead(parseInt(id), isRead);
+    const ok = await markXueqiuPostRead(parseInt(id), isRead);
+    if (!ok) return res.status(500).json({ success: false, error: '更新失败，请检查数据库' });
     res.json({ success: true, isRead });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
