@@ -95,12 +95,12 @@ async function syncSingleUser(targetUserId) {
         break;
       }
 
-      // 第一页时记录用户信息
-      if (page === 1 && statuses.length > 0) {
-        apiUserInfo = statuses[0]?.user || null;
-      }
-
       const parsed = xueqiuService.parseTimelineResponse(result);
+
+      // 第一页时记录用户信息（使用解析后的数据，profile_image_url 已做 _square→_small 处理）
+      if (page === 1 && parsed.statuses.length > 0) {
+        apiUserInfo = parsed.statuses[0]?.user || null;
+      }
 
       for (const post of parsed.statuses) {
         // 遇到已知帖子（ID <= latestKnownId）说明后面都是旧数据，停止
