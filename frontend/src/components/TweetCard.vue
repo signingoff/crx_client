@@ -52,7 +52,7 @@
     </div>
 
     <div class="tweet-content">
-      <p v-html="formatText(displayText, props.tweet.entities)"></p>
+      <p v-html="formatText(displayText, props.tweet.entities, props.tweet.source)"></p>
     </div>
 
     <!-- 文章卡片 -->
@@ -224,7 +224,7 @@ const displayText = computed(() => {
 
 function openTweetLink() {
   if (props.tweet.source === 'xueqiu') {
-    window.open(`https://xueqiu.com/s/${props.tweet.userId}/${props.tweet.id}`, '_blank')
+    window.open(`https://xueqiu.com/${props.tweet.userId}/${props.tweet.id}`, '_blank')
   } else {
     window.open(`https://x.com/i/web/status/${props.tweet.id}`, '_blank')
   }
@@ -357,8 +357,15 @@ function decodeHtmlEntities(text) {
  * 2. 处理 @提及 和 URL（优先使用 entities 数据）
  * 3. 高亮话题标签
  */
-function formatText(text, entities = null) {
+function formatText(text, entities = null, source = null) {
   if (!text) return ''
+
+  // 雪球帖子的 text 本身就是 HTML，直接渲染，避免 URL 正则破坏已有 <a> 标签
+  if (source === 'xueqiu') {
+    return text
+      .replace(/<a /g, '<a onclick="event.stopPropagation()" ')
+      .replace(/<br\/>/g, '<br>')
+  }
 
   // 解码 HTML 实体
   let formattedText = decodeHtmlEntities(text)
@@ -595,6 +602,16 @@ function formatText(text, entities = null) {
 .tweet-content :deep(.url-link:hover) {
   text-decoration: underline;
 }
+
+.tweet-content :deep(a) {
+  color: #1d9bf0;
+  text-decoration: none;
+}
+
+.tweet-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
 
 /* 文章卡片 */
 .article-card {

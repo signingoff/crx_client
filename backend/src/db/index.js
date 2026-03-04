@@ -14,9 +14,6 @@ try {
     console.log('⚠️ 未配置 Supabase，数据库功能将不可用');
     // 提供一个空的 db 实现
     db = {
-      isPostRead: async () => false,
-      markPostAsRead: async () => {},
-      getReadStats: async () => ({ read: 0, unread: 0 }),
       getSetting: async (_, defaultValue) => defaultValue,
       setSetting: async () => false,
       getAllSettings: async () => ({})
@@ -26,9 +23,6 @@ try {
   console.error('数据库初始化失败:', err.message);
   // 提供 fallback 实现
   db = {
-    isPostRead: async () => false,
-    markPostAsRead: async () => {},
-    getReadStats: async () => ({ read: 0, unread: 0 }),
     getSetting: async (_, defaultValue) => defaultValue,
     setSetting: async () => false,
     getAllSettings: async () => ({})
@@ -36,9 +30,6 @@ try {
 }
 
 export const {
-  isPostRead,
-  markPostAsRead,
-  getReadStats,
   getSetting,
   setSetting,
   getAllSettings

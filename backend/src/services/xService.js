@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { isPostRead } from '../db/index.js';
 import { getConfig, getXCookies, loadConfigFromDB } from '../config/settingsConfig.js';
 
 const X_API_BASE = 'https://x.com/i/api/graphql';
@@ -94,19 +93,7 @@ export async function getForYouTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语和韩语推文，只保留未读的推文
-    const filteredTweets = [];
-    for (const tweet of tweets) {
-      const isJapanese = isJapaneseText(tweet.text);
-      const isKorean = isKoreanText(tweet.text);
-      if (isJapanese || isKorean) continue;
-
-      const isRead = await isPostRead(tweet.id);
-      if (!isRead) {
-        filteredTweets.push(tweet);
-      }
-    }
-    return filteredTweets;
+    return tweets.filter(tweet => !isJapaneseText(tweet.text) && !isKoreanText(tweet.text));
   } catch (error) {
     console.error('Error fetching For You tweets:', error.response?.data || error.message);
     throw new Error('Failed to fetch For You tweets. Please check your cookies.');

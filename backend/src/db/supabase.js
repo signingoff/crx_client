@@ -355,27 +355,23 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
       source: post.source || '雪球'
     }));
 
-    // 使用 upsert 跳过重复记录
-    const { error } = await supabase
+    // upsert 并用 .select('id') 拿回实际插入的行（忽略重复行不返回）
+    const { data, error } = await supabase
       .from(XUEQIU_POSTS_TABLE)
-      .upsert(insertData, { onConflict: 'id', ignoreDuplicates: true });
+      .upsert(insertData, { onConflict: 'id', ignoreDuplicates: true })
+      .select('id');
 
     if (error) {
       console.error('保存雪球帖子失败:', error.message);
-      return false;
+      return 0;
     }
 
-    // 统计实际插入的数量
-    const { count } = await supabase
-      .from(XUEQIU_POSTS_TABLE)
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
-    console.log(`保存了 ${count || insertData.length} 条雪球帖子`);
-    return true;
+    const newCount = data?.length ?? 0;
+    console.log(`保存 ${newCount} 条新雪球帖子（提交 ${insertData.length} 条）`);
+    return newCount;
   } catch (err) {
     console.error('保存雪球帖子异常:', err.message);
-    return false;
+    return 0;
   }
 }
 
@@ -477,24 +473,24 @@ export async function getAllXueqiuPosts(page = 1, limit = 20) {
 }
 
 /**
- * 获取用户最新帖子的 ID（用于增量同步）
+ * 获取用户最新帖子的发布时间（用于增量同步）
  * @param {number} userId - 用户ID
- * @returns {Promise<number|null>}
+ * @returns {Promise<number|null>} created_at 时间戳（毫秒）
  */
-export async function getLatestPostId(userId) {
+export async function getLatestPostCreatedAt(userId) {
   if (!supabase) return null;
 
   try {
     const { data, error } = await supabase
       .from(XUEQIU_POSTS_TABLE)
-      .select('id')
+      .select('created_at')
       .eq('user_id', userId)
-      .order('id', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data?.id || null;
+    return data?.created_at ? new Date(data.created_at).getTime() : null;
   } catch (err) {
     return null;
   }

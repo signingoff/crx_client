@@ -1,5 +1,5 @@
 import xueqiuService from './xueqiuService.js';
-import { saveXueqiuPosts, saveXueqiuUser, getXueqiuUsers, getLatestPostId } from '../db/supabase.js';
+import { saveXueqiuPosts, saveXueqiuUser, getXueqiuUsers, getLatestPostCreatedAt } from '../db/supabase.js';
 
 let syncInterval = null;
 
@@ -68,15 +68,14 @@ async function syncSingleUser(targetUserId) {
   try {
     console.log(`同步用户 ${targetUserId}...`);
 
-    // 获取数据库中该用户最新帖子 ID，用于增量判断
-    const latestKnownId = await getLatestPostId(parseInt(targetUserId));
-    const isFirstSync = !latestKnownId;
+    // 首次同步（DB 中无任何帖子）才需要多翻页；增量同步固定拉少量页即可
+    const hasExistingPosts = await getLatestPostCreatedAt(parseInt(targetUserId));
+    const isFirstSync = !hasExistingPosts;
 
-    const newPosts = [];
-    let reachedKnown = false;
     let apiUserInfo = null;
+    let totalNew = 0;
 
-    // 首次同步最多50页，增量同步最多10页（新帖子不会超过10页）
+    // 首次同步最多 50 页；增量同步逐页 upsert，整页全重复即停（无上限安全帽 10 页）
     const maxPages = isFirstSync ? 50 : 10;
 
     for (let page = 1; page <= maxPages; page++) {
@@ -90,34 +89,28 @@ async function syncSingleUser(targetUserId) {
 
       const statuses = result.statuses || [];
       console.log(`用户 ${targetUserId} 第 ${page} 页: ${statuses.length} 条`);
-
-      if (statuses.length === 0) {
-        break;
-      }
+      if (statuses.length === 0) break;
 
       const parsed = xueqiuService.parseTimelineResponse(result);
 
-      // 第一页时记录用户信息（使用解析后的数据，profile_image_url 已做 _square→_small 处理）
       if (page === 1 && parsed.statuses.length > 0) {
         apiUserInfo = parsed.statuses[0]?.user || null;
       }
 
-      for (const post of parsed.statuses) {
-        // 遇到已知帖子（ID <= latestKnownId）说明后面都是旧数据，停止
-        if (latestKnownId && post.id <= latestKnownId) {
-          reachedKnown = true;
-          break;
-        }
-        newPosts.push(post);
-      }
+      const userScreenName = apiUserInfo
+        ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
+        : targetUserId.toString();
 
-      if (reachedKnown) {
-        console.log(`用户 ${targetUserId} 已追上最新同步位置，停止翻页`);
+      // 逐页 upsert，返回本页实际新增数
+      const pageNew = await saveXueqiuPosts(parsed.statuses, parseInt(targetUserId), userScreenName);
+      totalNew += pageNew;
+
+      // 增量同步：本页全为重复 → 后面也不会有新帖，提前停止
+      if (!isFirstSync && pageNew === 0) {
+        console.log(`用户 ${targetUserId} 第 ${page} 页全为已有帖子，停止翻页`);
         break;
       }
     }
-
-    console.log(`用户 ${targetUserId} 新增 ${newPosts.length} 条`);
 
     const userScreenName = apiUserInfo
       ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
@@ -137,11 +130,10 @@ async function syncSingleUser(targetUserId) {
       });
     }
 
-    if (newPosts.length > 0) {
-      await saveXueqiuPosts(newPosts, parseInt(targetUserId), userScreenName);
-      console.log(`  ✓ ${userScreenName}: 新增 ${newPosts.length} 条`);
+    if (totalNew > 0) {
+      console.log(`  ✓ ${userScreenName}: 新增 ${totalNew} 条`);
     } else {
-      console.log(`  ○ 用户 ${targetUserId}: 无新帖子`);
+      console.log(`  ○ ${userScreenName}: 无新帖子`);
     }
   } catch (err) {
     console.error(`  ✗ 用户 ${targetUserId} 失败:`, err.message);
