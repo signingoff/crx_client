@@ -177,19 +177,7 @@ export async function getFollowingTweets(count = 20) {
     });
 
     const tweets = parseTweets(response.data);
-    // 过滤掉日语和韩语推文，只保留未读的推文
-    const filteredTweets = [];
-    for (const tweet of tweets) {
-      const isJapanese = isJapaneseText(tweet.text);
-      const isKorean = isKoreanText(tweet.text);
-      if (isJapanese || isKorean) continue;
-
-      const isRead = await isPostRead(tweet.id);
-      if (!isRead) {
-        filteredTweets.push(tweet);
-      }
-    }
-    return filteredTweets;
+    return tweets.filter(tweet => !isJapaneseText(tweet.text) && !isKoreanText(tweet.text));
   } catch (error) {
     console.error('Error fetching Following tweets:', error.response?.data || error.message);
     // 如果失败，返回空数组，不中断流程
