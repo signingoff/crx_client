@@ -6,10 +6,7 @@
         <router-link to="/xueqiu" class="nav-link" title="雪球发言">
           ❄️
         </router-link>
-        <router-link to="/xueqiu/settings" class="nav-link" title="雪球用户管理">
-          ⚙️
-        </router-link>
-        <button class="settings-btn" @click="openSettings" title="设置">
+<button class="settings-btn" @click="openSettings" title="设置">
           🔧
         </button>
         <span v-if="loading && tweets.length === 0" class="loading-indicator">⟳ 加载中...</span>
