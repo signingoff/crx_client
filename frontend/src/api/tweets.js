@@ -4,51 +4,6 @@ import axios from 'axios'
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api'
 
 /**
- * 获取 For You 页面的推文
- * @param {number} count - 获取数量
- */
-export async function fetchForYouTweets(count = 20) {
-  const response = await axios.get(`${API_BASE}/tweets/for-you`, {
-    params: { count, t: Date.now() }
-  })
-  return response.data
-}
-
-/**
- * 标记单条推文为已读（双击卡片时调用）
- * @param {string} tweetId - 推文ID
- */
-export async function markTweetAsRead(tweetId) {
-  if (!tweetId) return
-  const response = await axios.post(`${API_BASE}/tweets/mark-read`, {
-    tweetId,
-    isRead: true
-  })
-  return response.data
-}
-
-/**
- * 标记单条推文为未读
- * @param {string} tweetId - 推文ID
- */
-export async function markTweetAsUnread(tweetId) {
-  if (!tweetId) return
-  const response = await axios.post(`${API_BASE}/tweets/mark-read`, {
-    tweetId,
-    isRead: false
-  })
-  return response.data
-}
-
-/**
- * 获取已读/未读统计
- */
-export async function getReadStats() {
-  const response = await axios.get(`${API_BASE}/tweets/read-stats`)
-  return response.data
-}
-
-/**
  * 获取 Query ID 配置
  */
 export async function getQueryConfig() {
@@ -78,13 +33,21 @@ export async function fetchQueryIdFromX() {
 }
 
 /**
- * 批量查询推文的已读状态
- * @param {string[]} tweetIds - 推文ID数组
+ * 标记 Twitter 推文已读/未读
+ * @param {string} id - 推文 ID
+ * @param {boolean} isRead - 是否已读
  */
-export async function fetchReadStatus(tweetIds) {
-  if (!tweetIds || tweetIds.length === 0) return {}
-  const response = await axios.post(`${API_BASE}/tweets/read-status`, {
-    tweetIds
-  })
+export async function markTwitterPostRead(id, isRead) {
+  const response = await axios.post(`${API_BASE}/twitter/posts/${id}/read`, { isRead })
+  return response.data
+}
+
+/**
+ * 标记雪球帖子已读/未读
+ * @param {string|number} id - 帖子 ID
+ * @param {boolean} isRead - 是否已读
+ */
+export async function markXueqiuPostRead(id, isRead) {
+  const response = await axios.post(`${API_BASE}/xueqiu/posts/${id}/read`, { isRead })
   return response.data
 }
