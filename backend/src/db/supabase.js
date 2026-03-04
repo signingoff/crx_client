@@ -200,6 +200,14 @@ export async function getAllSettings() {
  * 雪球帖子相关功能
  */
 
+function normalizeAvatar(url) {
+  if (!url) return ''
+  const firstUrl = url.split(',')[0]
+  return firstUrl.startsWith('http')
+    ? firstUrl
+    : 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg'
+}
+
 const XUEQIU_POSTS_TABLE = 'xueqiu_posts';
 const XUEQIU_USERS_TABLE = 'xueqiu_users';
 
@@ -431,8 +439,7 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
       reposts_count: post.reposts_count || 0,
       comments_count: post.comments_count || 0,
       likes_count: post.likes_count || 0,
-      source: post.source || '雪球',
-      avatar: post.user?.profile_image_url || ''
+      source: post.source || '雪球'
     }));
 
     // 使用 upsert 跳过重复记录
