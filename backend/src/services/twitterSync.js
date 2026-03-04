@@ -53,7 +53,7 @@ async function syncTwitterPosts() {
     const dbPosts = uniqueTweets.map(tweet => ({
       id: tweet.id,
       text: tweet.text,
-      created_at: new Date(tweet.createdAt).getTime(),
+      created_at: new Date(tweet.createdAt).toISOString(),
       user_id: tweet.author?.id || tweet.author?.username || '',
       user_name: tweet.author?.name || '',
       user_screen_name: tweet.author?.username || '',
