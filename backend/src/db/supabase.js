@@ -432,6 +432,7 @@ export async function getAllXueqiuPosts(page = 1, limit = 20) {
     const { data, count, error } = await supabase
       .from(XUEQIU_POSTS_TABLE)
       .select('*', { count: 'exact' })
+      .neq('is_read', true)
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -578,6 +579,7 @@ export async function getAllTwitterPosts(page = 1, limit = 20) {
     const { data, count, error } = await supabase
       .from(TWITTER_POSTS_TABLE)
       .select('*', { count: 'exact' })
+      .neq('is_read', true)
       .order('created_at', { ascending: false })
       .range(from, to);
     if (error) throw error;
