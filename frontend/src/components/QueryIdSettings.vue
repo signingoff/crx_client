@@ -82,68 +82,7 @@
           </div>
         </div>
 
-        <!-- 雪球用户设置 -->
-        <div class="section">
-          <h4>❄️ 雪球网监控</h4>
-          <p class="description">
-            设置要监控的雪球用户ID（支持多个，用逗号分隔），后台会自动获取并保存用户发言到数据库。
-          </p>
 
-          <div class="current-config">
-            <div class="config-item">
-              <label>监控用户数:</label>
-              <span>{{ xueqiuUserIds.length }} 个</span>
-            </div>
-            <div class="config-item">
-              <label>状态:</label>
-              <span :class="['status', syncStatus]">{{ syncStatusText }}</span>
-            </div>
-          </div>
-
-          <!-- 用户列表 -->
-          <div class="xueqiu-user-list">
-            <div
-              v-for="(user, index) in xueqiuUserList"
-              :key="index"
-              class="xueqiu-user-item"
-            >
-              <div class="user-info">
-                <code>{{ user.id }}</code>
-                <span class="user-name">{{ user.name || '未知' }}</span>
-              </div>
-              <button class="btn-remove" @click="removeUser(user.id)">✕</button>
-            </div>
-          </div>
-
-          <div class="input-group">
-            <label>添加用户ID:</label>
-            <input
-              v-model="newXueqiuUserId"
-              type="text"
-              placeholder="输入雪球用户ID，多个用逗号分隔（如 7433300125,2958699535）..."
-            />
-          </div>
-          <button
-            class="btn btn-secondary"
-            @click="addXueqiuUserId"
-            :disabled="!newXueqiuUserId.trim()"
-          >
-            ➕ 添加监控用户
-          </button>
-
-          <div class="help-section">
-            <h5>💡 如何获取用户ID?</h5>
-            <ol>
-              <li>打开雪球用户主页，如 <a href="https://xueqiu.com/u/7433300125" target="_blank">xueqiu.com/u/7433300125</a></li>
-              <li>URL 中的数字就是用户ID</li>
-              <li>或者输入用户名（如 方三文），系统会自动查找用户ID</li>
-            </ol>
-          </div>
-
-          <div v-if="xueqiuMessage" :class="['message', xueqiuMessageType]">
-            {{ xueqiuMessage }}
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -152,9 +91,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getQueryConfig, updateQueryId, fetchQueryIdFromX } from '../api/tweets.js'
-import axios from 'axios'
-
-const API_BASE = '/api'
 
 const emit = defineEmits(['close', 'updated'])
 
@@ -165,112 +101,14 @@ const messageType = ref('info')
 const manualHomeQueryId = ref('')
 const manualFollowingQueryId = ref('')
 
-// 雪球用户设置
-const xueqiuUserIds = ref([])
-const xueqiuUserList = ref([]) // [{id: '123', name: '用户'}]
-const newXueqiuUserId = ref('')
-const syncStatus = ref('idle') // idle, syncing, error
-const syncStatusText = computed(() => {
-  if (syncStatus.value === 'syncing') return '同步中...'
-  if (syncStatus.value === 'error') return '同步失败'
-  return '已停止'
-})
-const xueqiuMessage = ref('')
-const xueqiuMessageType = ref('info')
-
 const canManualUpdate = computed(() => {
   return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim()
 })
 
 onMounted(async () => {
   await loadConfig()
-  await loadXueqiuConfig()
 })
 
-async function loadXueqiuConfig() {
-  try {
-    // 从新 API 获取用户列表
-    const response = await axios.get(`${API_BASE}/xueqiu/users`)
-    if (response.data.success && response.data.data) {
-      xueqiuUserIds.value = response.data.data.map(u => u.user_id?.toString() || u.id?.toString())
-      xueqiuUserList.value = response.data.data.map(u => ({
-        id: u.user_id || u.id,
-        name: u.screen_name || ''
-      }))
-      return
-    }
-
-    xueqiuUserIds.value = []
-    xueqiuUserList.value = []
-  } catch (err) {
-    console.log('加载雪球配置失败:', err.message)
-  }
-}
-
-async function addXueqiuUserId() {
-  if (!newXueqiuUserId.value.trim()) return
-
-  // 解析输入的ID（支持逗号分隔多个）
-  const newIds = newXueqiuUserId.value.split(',').map(id => id.trim()).filter(id => id)
-
-  try {
-    // 逐个添加用户
-    for (const id of newIds) {
-      if (!xueqiuUserIds.value.includes(id)) {
-        try {
-          const userRes = await axios.get(`${API_BASE}/xueqiu/user/${id}/info`)
-          await axios.post(`${API_BASE}/xueqiu/users`, {
-            user_id: id,
-            screen_name: userRes.data.data?.screen_name || ''
-          })
-          xueqiuUserIds.value.push(id)
-          xueqiuUserList.value.push({ id, name: userRes.data.data?.screen_name || '' })
-        } catch (e) {
-          // 用户不存在也添加
-          await axios.post(`${API_BASE}/xueqiu/users`, { user_id: id })
-          xueqiuUserIds.value.push(id)
-          xueqiuUserList.value.push({ id, name: '' })
-        }
-      }
-    }
-
-    newXueqiuUserId.value = ''
-    showXueqiuMessage(`✅ 已添加 ${newIds.length} 个监控用户！`, 'success')
-
-    // 触发立即同步
-    try {
-      await axios.get(`${API_BASE}/xueqiu/sync`)
-    } catch (e) {}
-  } catch (err) {
-    showXueqiuMessage('❌ 添加失败: ' + err.message, 'error')
-  }
-}
-
-async function removeUser(id) {
-  try {
-    await axios.delete(`${API_BASE}/xueqiu/users/${id}`)
-
-    xueqiuUserIds.value = xueqiuUserIds.value.filter(uid => uid !== id)
-    xueqiuUserList.value = xueqiuUserList.value.filter(u => u.id !== id)
-
-    showXueqiuMessage('✅ 已移除用户 ' + id, 'success')
-
-    // 触发立即同步
-    try {
-      await axios.get(`${API_BASE}/xueqiu/sync`)
-    } catch (e) {}
-  } catch (err) {
-    showXueqiuMessage('❌ 移除失败: ' + err.message, 'error')
-  }
-}
-
-function showXueqiuMessage(text, type = 'info') {
-  xueqiuMessage.value = text
-  xueqiuMessageType.value = type
-  setTimeout(() => {
-    xueqiuMessage.value = ''
-  }, 5000)
-}
 
 async function loadConfig() {
   try {
@@ -492,58 +330,6 @@ function formatTime(isoString) {
   background: #d1d9dd;
 }
 
-/* 雪球用户列表 */
-.xueqiu-user-list {
-  margin: 12px 0;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.xueqiu-user-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f7f9fa;
-  border-radius: 8px;
-  margin-bottom: 8px;
-}
-
-.xueqiu-user-item .user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.xueqiu-user-item .user-info code {
-  font-size: 13px;
-  background: #e1e8ed;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.xueqiu-user-item .user-name {
-  color: #536471;
-  font-size: 13px;
-}
-
-.btn-remove {
-  background: #e0245e;
-  color: white;
-  border: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-remove:hover {
-  background: #c41e3a;
-}
 
 .manual-section {
   border-top: 1px solid #e1e8ed;
@@ -645,24 +431,4 @@ function formatTime(isoString) {
   color: #0c5460;
 }
 
-.status {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.status.idle {
-  background: #e1e8ed;
-  color: #536471;
-}
-
-.status.syncing {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status.error {
-  background: #f8d7da;
-  color: #721c24;
-}
 </style>
