@@ -8,9 +8,11 @@
     <!-- 已读标记 -->
     <div v-if="actualIsRead" class="read-indicator">✓ 已读</div>
 
-    <!-- X 图标按钮 - 点击打开 X.com -->
-    <button class="x-link-btn" @click="openTweetLink" title="在 X.com 打开">
-      <svg viewBox="0 0 24 24" fill="currentColor">
+    <!-- 链接按钮 - 根据来源跳转 -->
+    <button class="x-link-btn" @click.stop="openTweetLink"
+      :title="tweet.source === 'xueqiu' ? '在雪球网打开' : '在 X.com 打开'">
+      <span v-if="tweet.source === 'xueqiu'" class="xueqiu-icon">❄️</span>
+      <svg v-else viewBox="0 0 24 24" fill="currentColor">
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
       </svg>
     </button>
@@ -221,7 +223,11 @@ const displayText = computed(() => {
 })
 
 function openTweetLink() {
-  window.open(`https://x.com/i/web/status/${props.tweet.id}`, '_blank')
+  if (props.tweet.source === 'xueqiu') {
+    window.open(`https://xueqiu.com/s/${props.tweet.userId}/${props.tweet.id}`, '_blank')
+  } else {
+    window.open(`https://x.com/i/web/status/${props.tweet.id}`, '_blank')
+  }
 }
 
 // 打开文章链接
@@ -469,6 +475,12 @@ function formatText(text, entities = null) {
 
 .x-link-btn:hover svg {
   fill: #1d9bf0;
+}
+
+.xueqiu-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: block;
 }
 
 /* 转发头部 */

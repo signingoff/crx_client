@@ -44,6 +44,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
 import TweetList from '../components/TweetList.vue'
 import QueryIdSettings from '../components/QueryIdSettings.vue'
 import { fetchForYouTweets } from '../api/tweets.js'
@@ -55,6 +56,29 @@ const error = ref('')
 const lastUpdated = ref('')
 const showSettings = ref(false)
 let refreshInterval = null
+
+function normalizeXueqiuPost(post) {
+  return {
+    id: String(post.id),
+    text: post.text,
+    createdAt: post.created_at,
+    source: 'xueqiu',
+    userId: post.user_id,
+    author: {
+      name: post.user_screen_name,
+      username: post.user_screen_name,
+      avatar: post.avatar || '',
+    },
+    metrics: {
+      replies: post.comments_count || 0,
+      retweets: post.reposts_count || 0,
+      likes: post.likes_count || 0,
+    },
+    media: [],
+    entities: null,
+    article: null,
+  }
+}
 
 function openSettings() {
   showSettings.value = true
@@ -77,26 +101,33 @@ async function loadTweets() {
   error.value = ''
 
   try {
-    const response = await fetchForYouTweets(20)
-    console.log('API response:', response)
-    if (response.success) {
-      const existingIds = new Set(tweets.value.map(t => t.id))
-      const newTweets = response.data.filter(t => !existingIds.has(t.id))
+    const [tweetRes, xueqiuRes] = await Promise.all([
+      fetchForYouTweets(20),
+      axios.get('/api/xueqiu/posts', { params: { page: 1, limit: 30 } }).catch(() => null)
+    ])
 
-      if (tweets.value.length === 0) {
-        // 初始加载，直接显示
-        tweets.value = response.data
-        updateLastUpdatedTime()
-      } else if (newTweets.length > 0) {
-        // 有新推文，加入待加载列表
-        const pendingIds = new Set(pendingTweets.value.map(t => t.id))
-        const trulyNew = newTweets.filter(t => !pendingIds.has(t.id))
-        if (trulyNew.length > 0) {
-          pendingTweets.value = [...trulyNew, ...pendingTweets.value]
-        }
+    if (!tweetRes.success) {
+      error.value = tweetRes.error || '获取失败'
+      return
+    }
+
+    const xTweets = tweetRes.data
+    const xueqiuPosts = (xueqiuRes?.data?.data?.posts || []).map(normalizeXueqiuPost)
+    const allNew = [...xTweets, ...xueqiuPosts]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+    const existingIds = new Set(tweets.value.map(t => t.id))
+    const newItems = allNew.filter(t => !existingIds.has(t.id))
+
+    if (tweets.value.length === 0) {
+      tweets.value = allNew
+      updateLastUpdatedTime()
+    } else if (newItems.length > 0) {
+      const pendingIds = new Set(pendingTweets.value.map(t => t.id))
+      const trulyNew = newItems.filter(t => !pendingIds.has(t.id))
+      if (trulyNew.length > 0) {
+        pendingTweets.value = [...trulyNew, ...pendingTweets.value]
       }
-    } else {
-      error.value = response.error || '获取失败'
     }
   } catch (err) {
     error.value = err.message || '网络错误，请检查后端服务'
