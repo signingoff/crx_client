@@ -543,8 +543,11 @@ export async function getAllXueqiuPosts(page = 1, limit = 20) {
     const userMap = Object.fromEntries(
       (users || []).map(u => [u.user_id, normalizeAvatar(u.profile_image_url)])
     )
+    // 只返回用户表中存在的用户的帖子
+    const existingUserIds = new Set(users?.map(u => u.user_id) || [])
+    const filteredPosts = posts.filter(p => existingUserIds.has(p.user_id))
     return {
-      posts: posts.map(p => ({ ...p, avatar: userMap[p.user_id] || '' })),
+      posts: filteredPosts.map(p => ({ ...p, avatar: userMap[p.user_id] || '' })),
       total: count ?? posts.length
     };
   } catch (err) {
