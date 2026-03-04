@@ -12,92 +12,6 @@ if (supabaseUrl && supabaseKey) {
 }
 
 /**
- * 标记单条推文为已读/未读
- * @param {string} tweetId - 推文ID
- * @param {boolean} isRead - 是否已读
- */
-export async function markPostAsRead(tweetId, isRead = true) {
-  if (!supabase) return;
-  try {
-    const { error } = await supabase
-      .from('read_posts')
-      .upsert(
-        {
-          tweet_id: tweetId,
-          is_read: isRead
-        },
-        {
-          onConflict: 'tweet_id'
-        }
-      );
-
-    if (error) {
-      console.error('Error marking post as read:', error);
-    }
-  } catch (err) {
-    console.error('Error in markPostAsRead:', err);
-  }
-}
-
-/**
- * 检查推文是否已读
- * @param {string} tweetId - 推文ID
- * @returns {Promise<boolean>}
- */
-export async function isPostRead(tweetId) {
-  if (!supabase) return false;
-  try {
-    const { data, error } = await supabase
-      .from('read_posts')
-      .select('is_read')
-      .eq('tweet_id', tweetId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = 未找到
-      console.error('Error checking post read status:', error);
-    }
-
-    return !!data?.is_read;
-  } catch (err) {
-    console.error('Error in isPostRead:', err);
-    return false;
-  }
-}
-
-/**
- * 获取已读/未读统计
- * @returns {Promise<{total: number, read: number, unread: number}>}
- */
-export async function getReadStats() {
-  if (!supabase) return { total: 0, read: 0, unread: 0 };
-  try {
-    // 获取总数
-    const { count: total, error: totalError } = await supabase
-      .from('read_posts')
-      .select('*', { count: 'exact', head: true });
-
-    if (totalError) throw totalError;
-
-    // 获取已读数
-    const { count: read, error: readError } = await supabase
-      .from('read_posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_read', true);
-
-    if (readError) throw readError;
-
-    return {
-      total: total || 0,
-      read: read || 0,
-      unread: (total || 0) - (read || 0)
-    };
-  } catch (err) {
-    console.error('Error in getReadStats:', err);
-    return { total: 0, read: 0, unread: 0 };
-  }
-}
-
-/**
  * 获取设置值
  * @param {string} key - 设置键名
  * @param {string} defaultValue - 默认值
@@ -434,7 +348,6 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
     const insertData = posts.map(post => ({
       id: post.id,
       user_id: post.user?.id || userId,
-      user_screen_name: post.user?.screen_name || userScreenName,
       text: post.text || '',
       created_at: post.created_at,
       reposts_count: post.reposts_count || 0,
@@ -494,14 +407,15 @@ export async function getXueqiuPosts(userId, limit = 100) {
     // Join user avatar
     const { data: userRow, error: userError } = await supabase
       .from(XUEQIU_USERS_TABLE)
-      .select('profile_image_url')
+      .select('profile_image_url, screen_name')
       .eq('user_id', userId)
       .single()
     if (userError && userError.code !== 'PGRST116') {
       console.error('获取用户头像失败:', userError.message);
     }
     const avatar = normalizeAvatar(userRow?.profile_image_url)
-    return posts.map(p => ({ ...p, avatar }));
+    const screen_name = userRow?.screen_name || ''
+    return posts.map(p => ({ ...p, avatar, user_screen_name: screen_name }));
   } catch (err) {
     console.error('获取雪球帖子异常:', err.message);
     return [];
@@ -535,19 +449,26 @@ export async function getAllXueqiuPosts(page = 1, limit = 20) {
     const userIds = [...new Set(posts.map(p => p.user_id))]
     const { data: users, error: usersError } = await supabase
       .from(XUEQIU_USERS_TABLE)
-      .select('user_id, profile_image_url')
+      .select('user_id, profile_image_url, screen_name')
       .in('user_id', userIds)
     if (usersError) {
       console.error('获取用户头像批量失败:', usersError.message);
     }
     const userMap = Object.fromEntries(
-      (users || []).map(u => [u.user_id, normalizeAvatar(u.profile_image_url)])
+      (users || []).map(u => [u.user_id, {
+        avatar: normalizeAvatar(u.profile_image_url),
+        screen_name: u.screen_name || ''
+      }])
     )
     // 只返回用户表中存在的用户的帖子
     const existingUserIds = new Set(users?.map(u => u.user_id) || [])
     const filteredPosts = posts.filter(p => existingUserIds.has(p.user_id))
     return {
-      posts: filteredPosts.map(p => ({ ...p, avatar: userMap[p.user_id] || '' })),
+      posts: filteredPosts.map(p => ({
+        ...p,
+        avatar: userMap[p.user_id]?.avatar || '',
+        user_screen_name: userMap[p.user_id]?.screen_name || ''
+      })),
       total: count ?? posts.length
     };
   } catch (err) {
@@ -687,6 +608,27 @@ export async function markTwitterPostRead(id, isRead = true) {
     return true;
   } catch (err) {
     console.error('标记 Twitter 推文已读失败:', err.message);
+    return false;
+  }
+}
+
+/**
+ * 标记雪球帖子已读/未读
+ * @param {number} id - 帖子 ID
+ * @param {boolean} isRead - 是否已读
+ * @returns {Promise<boolean>}
+ */
+export async function markXueqiuPostRead(id, isRead = true) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from(XUEQIU_POSTS_TABLE)
+      .update({ is_read: isRead })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('标记雪球帖子已读失败:', err.message);
     return false;
   }
 }
