@@ -47,7 +47,14 @@ app.use('/api/xueqiu', xueqiuRouter);
 
 // 启动雪球帖子同步任务
 import { startXueqiuSync } from './services/xueqiuSync.js';
+import { startTwitterSync } from './services/twitterSync.js';
 startXueqiuSync(300000); // 每 5 分钟同步一次
+
+// Twitter 路由
+const twitterRouter = (await import('./routes/twitter.js')).default;
+app.use('/api/twitter', twitterRouter);
+
+startTwitterSync(300000); // 每 5 分钟同步一次
 
 // 根路径
 app.get('/', (req, res) => {
