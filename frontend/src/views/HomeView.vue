@@ -80,7 +80,7 @@ function normalizeXueqiuPost(post) {
   return {
     id: String(post.id),
     text: post.text,
-    createdAt: post.created_at ? new Date(post.created_at).toISOString() : null,
+    createdAt: post.created_at ? new Date(Number(post.created_at)).toISOString() : null,
     source: 'xueqiu',
     is_read: post.is_read || false,
     userId: post.user_id,

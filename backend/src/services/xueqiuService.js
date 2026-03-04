@@ -215,7 +215,7 @@ function parseTimelineItem(item) {
   return {
     id: item.id,
     text: item.text || item.description || '',
-    created_at: item.created_at ? new Date(item.created_at).toISOString() : null,
+    created_at: item.created_at,
     user: {
       id: item.user?.id,
       screen_name: screenName,
