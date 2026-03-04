@@ -1,142 +1,8 @@
 import express from 'express';
-import xueqiuService from '../services/xueqiuService.js';
-import { ensureXueqiuPostsTable, getXueqiuPosts, getAllXueqiuPosts, getXueqiuUsers, getXueqiuUser, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts } from '../db/supabase.js';
+import { getXueqiuPosts, getAllXueqiuPosts, getXueqiuUsers, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts } from '../db/supabase.js';
 import { triggerSync } from '../services/xueqiuSync.js';
 
 const router = express.Router();
-
-/**
- * 获取用户时间线 - 单页
- * GET /api/xueqiu/user/:userId?page=1&type=1
- */
-router.get('/user/:userId', async (req, res) => {
-  try {
-    let { userId } = req.params;
-    const { page = 1, type = 1 } = req.query;
-
-    // 如果 userId 不是纯数字，尝试获取用户信息
-    if (!/^\d+$/.test(userId)) {
-      console.log('尝试获取用户信息:', userId);
-      try {
-        const userInfo = await xueqiuService.getUserInfoByScreenName(userId);
-        if (userInfo && userInfo.id) {
-          userId = userInfo.id;
-          console.log('获取到用户ID:', userId);
-        }
-      } catch (e) {
-        console.log('获取用户ID失败，使用原值');
-      }
-    }
-
-    console.log('请求用户ID:', userId, 'page:', page, 'type:', type);
-    const response = await xueqiuService.getUserTimeline(userId, parseInt(page), parseInt(type));
-    const parsed = xueqiuService.parseTimelineResponse(response);
-
-    res.json({
-      success: true,
-      data: {
-        statuses: parsed.statuses,
-        maxPage: parsed.maxPage,
-        currentPage: parseInt(page)
-      }
-    });
-  } catch (err) {
-    console.error('获取用户时间线失败:', err.message);
-    res.status(500).json({
-      success: false,
-      error: err.response?.data?.error || err.message
-    });
-  }
-});
-
-/**
- * 获取用户全部历史（分页获取）
- * GET /api/xueqiu/user/:userId/all
- */
-router.get('/user/:userId/all', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { type = 1, maxPages = 10 } = req.query;
-
-    const allStatuses = [];
-    let currentPage = 1;
-    let maxPage = 1;
-
-    // 递归获取所有页面
-    while (currentPage <= maxPage && currentPage <= parseInt(maxPages)) {
-      const response = await xueqiuService.getUserTimeline(userId, currentPage, parseInt(type));
-      const parsed = xueqiuService.parseTimelineResponse(response);
-
-      allStatuses.push(...parsed.statuses);
-      maxPage = parsed.maxPage;
-
-      // 没有更多数据了
-      if (parsed.statuses.length === 0) {
-        break;
-      }
-
-      currentPage++;
-    }
-
-    res.json({
-      success: true,
-      data: {
-        statuses: allStatuses,
-        totalPages: maxPage,
-        fetchedPages: currentPage - 1
-      }
-    });
-  } catch (err) {
-    console.error('获取全部历史失败:', err.message);
-    res.status(500).json({
-      success: false,
-      error: err.response?.data?.error || err.message
-    });
-  }
-});
-
-/**
- * 获取用户信息
- * GET /api/xueqiu/user/:userId/info
- */
-router.get('/user/:userId/info', async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    // 尝试通过雪球 API 获取用户信息
-    const userInfo = await xueqiuService.getUserInfoByScreenName(userId);
-
-    res.json({
-      success: true,
-      data: userInfo
-    });
-  } catch (err) {
-    console.error('获取用户信息失败:', err.message);
-    res.status(500).json({
-      success: false,
-      error: err.response?.data?.error || err.message
-    });
-  }
-});
-
-/**
- * 初始化雪球帖子表
- * GET /api/xueqiu/init
- */
-router.get('/init', async (req, res) => {
-  try {
-    const result = await ensureXueqiuPostsTable();
-    res.json({
-      success: result,
-      message: result ? '雪球帖子表初始化完成' : '初始化失败'
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
 
 /**
  * 手动触发同步
@@ -151,52 +17,6 @@ router.get('/sync', async (req, res) => {
       success: false,
       error: err.message
     });
-  }
-});
-
-/**
- * 获取已保存的雪球帖子
- * GET /api/xueqiu/saved/:userId
- */
-router.get('/saved/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const posts = await getXueqiuPosts(parseInt(userId), 500);
-
-    res.json({
-      success: true,
-      data: posts
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
-
-/**
- * 获取所有用户的聚合帖子（分页）
- * GET /api/xueqiu/posts?page=1&limit=20
- */
-router.get('/posts', async (req, res) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
-
-    const { posts, total } = await getAllXueqiuPosts(page, limit);
-
-    res.json({
-      success: true,
-      data: {
-        posts,
-        total,
-        page,
-        hasMore: page * limit < total
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -242,36 +62,6 @@ router.get('/users', async (req, res) => {
       success: true,
       data: result
     });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
-
-/**
- * 获取单个雪球用户详情
- * GET /api/xueqiu/user-detail/:userId
- */
-router.get('/user-detail/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await getXueqiuUser(parseInt(userId));
-
-    if (user) {
-      res.json({
-        success: true,
-        data: user
-      });
-    } else {
-      // 如果数据库没有，尝试从API获取
-      const userInfo = await xueqiuService.getUserInfoByScreenName(userId);
-      res.json({
-        success: true,
-        data: userInfo
-      });
-    }
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -343,6 +133,52 @@ router.delete('/users/:userId', async (req, res) => {
       success: false,
       error: err.message
     });
+  }
+});
+
+/**
+ * 获取已保存的雪球帖子
+ * GET /api/xueqiu/saved/:userId
+ */
+router.get('/saved/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const posts = await getXueqiuPosts(parseInt(userId), 500);
+
+    res.json({
+      success: true,
+      data: posts
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+/**
+ * 获取所有用户的聚合帖子（分页）
+ * GET /api/xueqiu/posts?page=1&limit=20
+ */
+router.get('/posts', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+
+    const { posts, total } = await getAllXueqiuPosts(page, limit);
+
+    res.json({
+      success: true,
+      data: {
+        posts,
+        total,
+        page,
+        hasMore: page * limit < total
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
