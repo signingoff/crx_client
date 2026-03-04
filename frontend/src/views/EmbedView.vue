@@ -38,7 +38,7 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
-import { fetchForYouTweets } from '../api/tweets.js'
+import axios from 'axios'
 import TwitterEmbed from '../components/TwitterEmbed.vue'
 
 const tweets = ref([])
@@ -57,9 +57,13 @@ async function loadTweets() {
   error.value = ''
 
   try {
-    const response = await fetchForYouTweets(20)
-    if (response.success) {
-      tweets.value = response.data
+    const response = await axios.get('/api/twitter/posts', { params: { page: 1, limit: 20 } })
+    if (response.data.success) {
+      tweets.value = response.data.data.posts.map(p => ({
+        id: p.id,
+        createdAt: new Date(p.created_at).toISOString(),
+        author: { username: p.user_screen_name }
+      }))
     }
   } catch (err) {
     error.value = err.message || '加载失败'
