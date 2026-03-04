@@ -404,6 +404,12 @@ function formatText(text, entities = null, source = null) {
         )
       }
     }
+
+    // entities 未覆盖的裸 URL（负向后行断言避免重复包装已处理的 href 内容）
+    formattedText = formattedText.replace(
+      /(?<![">])(https?:\/\/[^\s<"]+)/g,
+      `<a href="$1" target="_blank" class="url-link" onclick="event.stopPropagation()">$1</a>`
+    )
   } else {
     // 没有 entities 时的兜底处理
     formattedText = formattedText
