@@ -74,6 +74,7 @@ async function syncSingleUser(targetUserId) {
 
     const newPosts = [];
     let reachedKnown = false;
+    let apiUserInfo = null;
 
     // 首次同步最多50页，增量同步最多10页（新帖子不会超过10页）
     const maxPages = isFirstSync ? 50 : 10;
@@ -92,6 +93,11 @@ async function syncSingleUser(targetUserId) {
 
       if (statuses.length === 0) {
         break;
+      }
+
+      // 第一页时记录用户信息
+      if (page === 1 && statuses.length > 0) {
+        apiUserInfo = statuses[0]?.user || null;
       }
 
       const parsed = xueqiuService.parseTimelineResponse(result);
@@ -113,24 +119,26 @@ async function syncSingleUser(targetUserId) {
 
     console.log(`用户 ${targetUserId} 新增 ${newPosts.length} 条`);
 
+    // 无论有无新帖，始终更新用户信息（含 profile_image_url）
+    if (apiUserInfo) {
+      const userScreenName = (apiUserInfo.screen_name || targetUserId.toString())
+        .replace(/\s*[-–]\s*雪球$/, '').trim();
+      await saveXueqiuUser({
+        id: apiUserInfo.id || parseInt(targetUserId),
+        user_id: parseInt(targetUserId),
+        screen_name: userScreenName,
+        profile_image_url: apiUserInfo.profile_image_url,
+        description: apiUserInfo.description,
+        followers_count: apiUserInfo.followers_count,
+        friends_count: apiUserInfo.friends_count,
+        statuses_count: apiUserInfo.statuses_count
+      });
+    }
+
     if (newPosts.length > 0) {
-      let userScreenName = newPosts[0]?.user?.screen_name || targetUserId.toString();
-      userScreenName = userScreenName.replace(/\s*[-–]\s*雪球$/, '').trim();
-
-      const userInfo = newPosts[0]?.user;
-      if (userInfo) {
-        await saveXueqiuUser({
-          id: userInfo.id || parseInt(targetUserId),
-          user_id: parseInt(targetUserId),
-          screen_name: userScreenName,
-          profile_image_url: userInfo.profile_image_url,
-          description: userInfo.description,
-          followers_count: userInfo.followers_count,
-          friends_count: userInfo.friends_count,
-          statuses_count: userInfo.statuses_count
-        });
-      }
-
+      const userScreenName = apiUserInfo
+        ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
+        : targetUserId.toString();
       await saveXueqiuPosts(newPosts, parseInt(targetUserId), userScreenName);
       console.log(`  ✓ ${userScreenName}: 新增 ${newPosts.length} 条`);
     } else {
