@@ -202,7 +202,8 @@ export async function getAllSettings() {
 
 function normalizeAvatar(url) {
   if (!url) return ''
-  const firstUrl = url.split(',')[0]
+  const firstUrl = url.split(',')[0].trim()
+  if (!firstUrl) return ''
   return firstUrl.startsWith('http')
     ? firstUrl
     : 'https://xavatar.imedao.com/' + firstUrl + '!240x240.jpg'
@@ -491,11 +492,14 @@ export async function getXueqiuPosts(userId, limit = 100) {
     if (posts.length === 0) return [];
 
     // Join user avatar
-    const { data: userRow } = await supabase
-      .from('xueqiu_users')
+    const { data: userRow, error: userError } = await supabase
+      .from(XUEQIU_USERS_TABLE)
       .select('profile_image_url')
       .eq('user_id', userId)
       .single()
+    if (userError && userError.code !== 'PGRST116') {
+      console.error('获取用户头像失败:', userError.message);
+    }
     const avatar = normalizeAvatar(userRow?.profile_image_url)
     return posts.map(p => ({ ...p, avatar }));
   } catch (err) {
@@ -529,16 +533,19 @@ export async function getAllXueqiuPosts(page = 1, limit = 20) {
 
     // Join user avatars
     const userIds = [...new Set(posts.map(p => p.user_id))]
-    const { data: users } = await supabase
-      .from('xueqiu_users')
+    const { data: users, error: usersError } = await supabase
+      .from(XUEQIU_USERS_TABLE)
       .select('user_id, profile_image_url')
       .in('user_id', userIds)
+    if (usersError) {
+      console.error('获取用户头像批量失败:', usersError.message);
+    }
     const userMap = Object.fromEntries(
       (users || []).map(u => [u.user_id, normalizeAvatar(u.profile_image_url)])
     )
     return {
       posts: posts.map(p => ({ ...p, avatar: userMap[p.user_id] || '' })),
-      total: count || 0
+      total: count ?? posts.length
     };
   } catch (err) {
     console.error('获取所有雪球帖子失败:', err.message);
