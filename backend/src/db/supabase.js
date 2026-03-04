@@ -487,7 +487,17 @@ export async function getXueqiuPosts(userId, limit = 100) {
       return [];
     }
 
-    return data || [];
+    const posts = data || [];
+    if (posts.length === 0) return [];
+
+    // Join user avatar
+    const { data: userRow } = await supabase
+      .from('xueqiu_users')
+      .select('profile_image_url')
+      .eq('user_id', userId)
+      .single()
+    const avatar = normalizeAvatar(userRow?.profile_image_url)
+    return posts.map(p => ({ ...p, avatar }));
   } catch (err) {
     console.error('获取雪球帖子异常:', err.message);
     return [];
