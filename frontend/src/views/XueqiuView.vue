@@ -3,7 +3,7 @@
     <header class="header">
       <h1>❄️ 雪球网发言</h1>
       <div class="header-actions">
-        <router-link to="/" class="nav-link" title="返回 X For You">🔙</router-link>
+        <router-link to="/" class="nav-link" title="首页">🏠</router-link>
         <router-link to="/xueqiu/settings" class="nav-link" title="用户管理">⚙️</router-link>
       </div>
     </header>
