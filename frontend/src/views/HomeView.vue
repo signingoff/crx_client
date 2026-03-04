@@ -131,7 +131,7 @@ async function loadTweets() {
     const xueqiuPosts = (xueqiuRes?.data?.data?.posts || []).map(normalizeXueqiuPost)
     const allNew = [...twitterPosts, ...xueqiuPosts]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-
+    console.log(twitterPosts)
     const existingIds = new Set(tweets.value.map(t => t.id))
     const newItems = allNew.filter(t => !existingIds.has(t.id))
 

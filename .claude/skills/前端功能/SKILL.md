@@ -21,11 +21,11 @@ frontend/
 │   ├── components/
 │   │   ├── TweetCard.vue      # 单条推文卡片组件
 │   │   ├── TweetList.vue      # 推文列表容器
-│   │   ├── TwitterEmbed.vue   # Twitter 嵌入组件
+│   │   ├── Twittered.vue   # Twitter 嵌入组件
 │   │   └── QueryIdSettings.vue # Query ID 设置面板
 │   ├── views/
 │   │   ├── HomeView.vue       # 主页面视图
-│   │   └── EmbedView.vue      # 嵌入推文页面
+
 │   ├── router/
 │   │   └── index.js           # 路由配置
 │   ├── App.vue                # 根组件
@@ -676,26 +676,7 @@ function formatNumber(num) {
 }
 ```
 
-#### 使用示例
-```vue
-<template>
-  <TwitterEmbed tweet-id="123456789" :options="{ theme: 'dark' }" />
-</template>
-```
-
-### 9. 嵌入推文页面
-
-**文件**: `frontend/src/views/EmbedView.vue`
-
-**路径**: `/embed`
-
-支持输入推文链接或 ID，使用 Twitter 官方嵌入组件显示。
-
-**功能**:
-- 输入推文链接（`https://x.com/.../status/123...`）或纯 ID
-- 支持浅色/深色主题切换
-- 可同时显示多条推文进行对比
-- 响应式网格布局
+ 
 
 ### 10. 重启与部署流程
 

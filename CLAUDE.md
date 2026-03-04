@@ -359,7 +359,6 @@ npx kill-port 3000 5173
 - [x] 浏览器窗口滚动
 - [x] 韩语推文过滤
 - [x] X 文章卡片显示（x.com/i/article）
-- [x] Twitter 嵌入页面（/embed）
 - [x] 已读状态自动同步（每5秒）
 - [x] 部署到 Render + Vercel
 
@@ -576,7 +575,6 @@ CREATE TABLE xueqiu_posts (
 - 添加 Supabase settings 表存储配置
 - 添加已读状态自动同步（每5秒）
 - 部署到 Render + Vercel + Supabase
-- 添加 Twitter 嵌入页面（/embed）
 - 添加 X 文章卡片显示
 - 添加 HTML 实体解码和 URL 链接处理
 

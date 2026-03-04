@@ -37,7 +37,7 @@ xueqiu_crx/
 │   ├── src/
 │   │   ├── api/               # API calls (tweets.js)
 │   │   ├── components/        # Vue components (PascalCase)
-│   │   ├── views/             # Page views (HomeView.vue, EmbedView.vue)
+│   │   ├── views/             # Page views (HomeView.vue)
 │   │   ├── router/            # Vue Router
 │   │   └── utils/             # Utilities
 │   └── vite.config.js

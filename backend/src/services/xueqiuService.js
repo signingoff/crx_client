@@ -59,7 +59,7 @@ async function getUserTimeline(userId, page = 1, type = 1) {
     try {
       const cookie = await getCookie();
       const response = await axios.get(
-        `https://xueqiu.com/statuses/user_timeline.json?user_id=${userId}&page=${page}&type=${type}`,
+        `https://xueqiu.com/statuses/user_timeline.json?user_id=${userId}&page=${page}`,
         {
           headers: {
             'Cookie': `xq_a_token=${cookie}`,

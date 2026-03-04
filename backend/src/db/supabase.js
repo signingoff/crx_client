@@ -551,7 +551,6 @@ const TWITTER_POSTS_TABLE = 'twitter_posts';
 export async function saveTwitterPosts(posts) {
   if (!supabase || !posts.length) return false;
   try {
-    console.log(posts);
     const { error } = await supabase
       .from(TWITTER_POSTS_TABLE)
       .upsert(posts, { onConflict: 'tweet_id', ignoreDuplicates: false });

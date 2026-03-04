@@ -23,9 +23,6 @@
 -- 1. 重命名 read_posts → twitter_posts
 ALTER TABLE read_posts RENAME TO twitter_posts;
 
--- 2. 重命名主键列 tweet_id → id
-ALTER TABLE twitter_posts RENAME COLUMN tweet_id TO id;
-
 -- 3. 如果已存在 created_at 列（Supabase 自动时间戳），先改名
 -- 检查：SELECT column_name FROM information_schema.columns WHERE table_name='twitter_posts';
 -- 如果有 created_at 列则执行：
