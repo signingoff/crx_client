@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 const API_BASE = '/api'
@@ -94,7 +94,6 @@ const newUserId = ref('')
 const message = ref('')
 const messageType = ref('info')
 const syncing = ref(false)
-let syncTimer = null
 
 // 仅允许数字
 const isValidId = computed(() => {
@@ -105,11 +104,6 @@ const isValidId = computed(() => {
 
 onMounted(async () => {
   await loadUsers()
-  syncTimer = setInterval(() => {}, 5000) // 保持活跃
-})
-
-onUnmounted(() => {
-  if (syncTimer) clearInterval(syncTimer)
 })
 
 async function loadUsers() {
