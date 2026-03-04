@@ -44,7 +44,6 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import TweetList from '../components/TweetList.vue'
 import QueryIdSettings from '../components/QueryIdSettings.vue'
-import { fetchForYouTweets } from '../api/tweets.js'
 
 const tweets = ref([])
 const pendingTweets = ref([])
@@ -53,6 +52,29 @@ const error = ref('')
 const lastUpdated = ref('')
 const showSettings = ref(false)
 let refreshInterval = null
+
+function normalizeTwitterPost(post) {
+  return {
+    id: post.id,
+    text: post.text,
+    createdAt: new Date(post.created_at).toISOString(),
+    source: 'twitter',
+    is_read: post.is_read || false,
+    author: {
+      name: post.user_name,
+      username: post.user_screen_name,
+      avatar: post.avatar_url,
+    },
+    metrics: {
+      replies: post.replies_count || 0,
+      retweets: post.retweets_count || 0,
+      likes: post.likes_count || 0,
+    },
+    media: post.media || [],
+    entities: post.entities || null,
+    article: post.article || null,
+  }
+}
 
 function normalizeXueqiuPost(post) {
   return {
@@ -98,19 +120,14 @@ async function loadTweets() {
   error.value = ''
 
   try {
-    const [tweetRes, xueqiuRes] = await Promise.all([
-      fetchForYouTweets(20),
+    const [twitterRes, xueqiuRes] = await Promise.all([
+      axios.get('/api/twitter/posts', { params: { page: 1, limit: 30 } }).catch(() => null),
       axios.get('/api/xueqiu/posts', { params: { page: 1, limit: 30 } }).catch(() => null)
     ])
 
-    if (!tweetRes.success) {
-      error.value = tweetRes.error || '获取失败'
-      return
-    }
-
-    const xTweets = tweetRes.data
+    const twitterPosts = (twitterRes?.data?.data?.posts || []).map(normalizeTwitterPost)
     const xueqiuPosts = (xueqiuRes?.data?.data?.posts || []).map(normalizeXueqiuPost)
-    const allNew = [...xTweets, ...xueqiuPosts]
+    const allNew = [...twitterPosts, ...xueqiuPosts]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
     const existingIds = new Set(tweets.value.map(t => t.id))
@@ -154,7 +171,7 @@ function updateLastUpdatedTime() {
 
 onMounted(() => {
   loadTweets()
-  refreshInterval = setInterval(loadTweets, 15000)
+  refreshInterval = setInterval(loadTweets, 8000)
 })
 
 onUnmounted(() => {
