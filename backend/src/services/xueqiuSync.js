@@ -119,10 +119,12 @@ async function syncSingleUser(targetUserId) {
 
     console.log(`用户 ${targetUserId} 新增 ${newPosts.length} 条`);
 
+    const userScreenName = apiUserInfo
+      ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
+      : targetUserId.toString();
+
     // 无论有无新帖，始终更新用户信息（含 profile_image_url）
     if (apiUserInfo) {
-      const userScreenName = (apiUserInfo.screen_name || targetUserId.toString())
-        .replace(/\s*[-–]\s*雪球$/, '').trim();
       await saveXueqiuUser({
         id: apiUserInfo.id || parseInt(targetUserId),
         user_id: parseInt(targetUserId),
@@ -136,9 +138,6 @@ async function syncSingleUser(targetUserId) {
     }
 
     if (newPosts.length > 0) {
-      const userScreenName = apiUserInfo
-        ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
-        : targetUserId.toString();
       await saveXueqiuPosts(newPosts, parseInt(targetUserId), userScreenName);
       console.log(`  ✓ ${userScreenName}: 新增 ${newPosts.length} 条`);
     } else {
