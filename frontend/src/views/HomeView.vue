@@ -82,6 +82,7 @@ function normalizeXueqiuPost(post) {
     text: post.text,
     createdAt: post.created_at,
     source: 'xueqiu',
+    is_read: post.is_read || false,
     userId: post.user_id,
     author: {
       name: post.user_screen_name,
