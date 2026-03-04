@@ -513,7 +513,23 @@ export async function getAllXueqiuPosts(page = 1, limit = 20) {
       .range(from, to);
 
     if (error) throw error;
-    return { posts: data || [], total: count || 0 };
+
+    const posts = data || [];
+    if (posts.length === 0) return { posts: [], total: count || 0 };
+
+    // Join user avatars
+    const userIds = [...new Set(posts.map(p => p.user_id))]
+    const { data: users } = await supabase
+      .from('xueqiu_users')
+      .select('user_id, profile_image_url')
+      .in('user_id', userIds)
+    const userMap = Object.fromEntries(
+      (users || []).map(u => [u.user_id, normalizeAvatar(u.profile_image_url)])
+    )
+    return {
+      posts: posts.map(p => ({ ...p, avatar: userMap[p.user_id] || '' })),
+      total: count || 0
+    };
   } catch (err) {
     console.error('获取所有雪球帖子失败:', err.message);
     return { posts: [], total: 0 };
