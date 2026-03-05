@@ -95,12 +95,6 @@
       </div>
     </Teleport>
 
-    <div class="tweet-metrics">
-      <span class="metric" title="Replies">💬 {{ formatNumber(tweet.metrics.replies) }}</span>
-      <span class="metric" title="Retweets">🔄 {{ formatNumber(tweet.metrics.retweets) }}</span>
-      <span class="metric" title="Likes">❤️ {{ formatNumber(tweet.metrics.likes) }}</span>
-      <span v-if="tweet.metrics.views" class="metric" title="Views">👁️ {{ formatNumber(tweet.metrics.views) }}</span>
-    </div>
   </div>
 </template>
 
@@ -791,19 +785,4 @@ function formatText(text, entities = null, source = null) {
   height: 24px;
 }
 
-.tweet-metrics {
-  display: flex;
-  gap: 24px;
-  color: #536471;
-  font-size: 13px;
-}
-
-.metric {
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.metric:hover {
-  color: #1d9bf0;
-}
 </style>
