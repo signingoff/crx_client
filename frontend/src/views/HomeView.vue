@@ -6,7 +6,11 @@
         <router-link to="/user_settings" class="nav-link" title="用户管理">
           👥
         </router-link>
-<button class="settings-btn" @click="openSettings" title="设置">
+        <label class="for-you-toggle" title="只看 For You 推文">
+          <input type="checkbox" v-model="forYouOnly" @change="onForYouToggle" />
+          <span>For You</span>
+        </label>
+        <button class="settings-btn" @click="openSettings" title="设置">
           🔧
         </button>
         <span v-if="loading && tweets.length === 0" class="loading-indicator">⟳ 加载中...</span>
@@ -51,6 +55,7 @@ const loading = ref(false)
 const error = ref('')
 const lastUpdated = ref('')
 const showSettings = ref(false)
+const forYouOnly = ref(false)
 let refreshInterval = null
 
 function normalizeTwitterPost(post) {
@@ -123,7 +128,7 @@ async function loadTweets() {
 
   try {
     const [twitterRes, xueqiuRes] = await Promise.all([
-      axios.get('/api/twitter/posts', { params: { page: 1, limit: 30 } }).catch(() => null),
+      axios.get('/api/twitter/posts', { params: { page: 1, limit: 30, forYouOnly: forYouOnly.value } }).catch(() => null),
       axios.get('/api/xueqiu/posts', { params: { page: 1, limit: 30 } }).catch(() => null)
     ])
 
@@ -171,7 +176,22 @@ function updateLastUpdatedTime() {
   lastUpdated.value = `更新于 ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
 }
 
-onMounted(() => {
+async function onForYouToggle() {
+  try {
+    await axios.post('/api/settings/for_you_only', { value: forYouOnly.value ? 'true' : 'false' })
+  } catch (err) {
+    console.error('保存 for_you_only 设置失败:', err)
+  }
+  tweets.value = []
+  pendingTweets.value = []
+  await loadTweets()
+}
+
+onMounted(async () => {
+  try {
+    const res = await axios.get('/api/settings/for_you_only')
+    forYouOnly.value = res.data?.data?.value === 'true'
+  } catch {}
   loadTweets()
   refreshInterval = setInterval(loadTweets, 8000)
 })
@@ -280,5 +300,22 @@ h1 {
 
 .settings-btn:hover {
   background: #e1e8ed;
+}
+
+.for-you-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #536471;
+  cursor: pointer;
+  user-select: none;
+}
+
+.for-you-toggle input[type="checkbox"] {
+  accent-color: #1d9bf0;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 </style>
