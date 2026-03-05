@@ -22,6 +22,10 @@
               <label>Following (HomeLatestTimeline):</label>
               <code>{{ config.homeLatestTimelineQueryId || '未设置' }}</code>
             </div>
+            <div class="config-item">
+              <label>User Tweets:</label>
+              <code>{{ config.userTweetsQueryId || '未设置' }}</code>
+            </div>
             <div class="config-item" v-if="config.updatedAt">
               <label>最后更新:</label>
               <span class="time">{{ formatTime(config.updatedAt) }}</span>
@@ -53,6 +57,14 @@
               <label>Following Query ID:</label>
               <input
                 v-model="manualFollowingQueryId"
+                type="text"
+                placeholder="输入 Query ID..."
+              />
+            </div>
+            <div class="input-group">
+              <label>User Tweets Query ID:</label>
+              <input
+                v-model="manualUserTweetsQueryId"
                 type="text"
                 placeholder="输入 Query ID..."
               />
@@ -100,9 +112,10 @@ const message = ref('')
 const messageType = ref('info')
 const manualHomeQueryId = ref('')
 const manualFollowingQueryId = ref('')
+const manualUserTweetsQueryId = ref('')
 
 const canManualUpdate = computed(() => {
-  return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim()
+  return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim() || manualUserTweetsQueryId.value.trim()
 })
 
 onMounted(async () => {
@@ -117,6 +130,7 @@ async function loadConfig() {
       config.value = response.data
       manualHomeQueryId.value = response.data.homeTimelineQueryId || ''
       manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
+      manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
     }
   } catch (err) {
     showMessage('加载配置失败: ' + err.message, 'error')
@@ -134,6 +148,7 @@ async function autoFetch() {
       config.value = response.data
       manualHomeQueryId.value = response.data.homeTimelineQueryId || ''
       manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
+      manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
       showMessage('✅ Query ID 自动检测并更新成功！', 'success')
       emit('updated')
     } else {
@@ -153,6 +168,9 @@ async function manualUpdate() {
     }
     if (manualFollowingQueryId.value.trim()) {
       await updateQueryId('following', manualFollowingQueryId.value.trim())
+    }
+    if (manualUserTweetsQueryId.value.trim()) {
+      await updateQueryId('user', manualUserTweetsQueryId.value.trim())
     }
 
     await loadConfig()

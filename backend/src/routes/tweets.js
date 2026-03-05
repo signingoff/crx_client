@@ -27,6 +27,7 @@ router.get('/config', (req, res) => {
     data: {
       homeTimelineQueryId: config.homeTimelineQueryId,
       homeLatestTimelineQueryId: config.homeLatestTimelineQueryId,
+      userTweetsQueryId: config.userTweetsQueryId,
       updatedAt: config.updatedAt
     }
   });
@@ -48,14 +49,16 @@ router.post('/config/query-id', async (req, res) => {
   }
 
   try {
-    const validTypes = ['home', 'following'];
+    const validTypes = ['home', 'following', 'user'];
     if (!validTypes.includes(type)) {
       throw new Error(`无效的类型: ${type}。必须是: ${validTypes.join(', ')}`);
     }
 
     const key = type === 'home'
       ? 'HOME_TIMELINE_QUERY_ID'
-      : 'HOME_LATEST_TIMELINE_QUERY_ID';
+      : type === 'user'
+        ? 'USER_TWEETS_QUERY_ID'
+        : 'HOME_LATEST_TIMELINE_QUERY_ID';
 
     await setSetting(key, queryId);
     await loadConfigFromDB();
@@ -67,6 +70,7 @@ router.post('/config/query-id', async (req, res) => {
       data: {
         homeTimelineQueryId: config.homeTimelineQueryId,
         homeLatestTimelineQueryId: config.homeLatestTimelineQueryId,
+        userTweetsQueryId: config.userTweetsQueryId,
         updatedAt: config.updatedAt
       }
     });
