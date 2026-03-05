@@ -45,17 +45,17 @@
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │                   Express API                          │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌───────────────┐ │  │
-│  │  │ /for-you    │  │ /mark-read  │  │ /mark-rendered│ │  │
-│  │  │ - 获取推文   │  │ - 标记已读   │  │ - 标记已加载  │ │  │
-│  │  │ - 过滤       │  │ - 切换状态   │  │               │ │  │
+│  │  │ /twitter/*  │  │ /xueqiu/*   │  │ /tweets/config│ │  │
+│  │  │ - 获取推文   │  │ - 雪球帖子   │  │ - Query ID    │ │  │
+│  │  │ - 用户管理   │  │ - 用户管理   │  │ - 自动检测    │ │  │
 │  │  └─────────────┘  └─────────────┘  └───────────────┘ │  │
 │  └───────────────────────────────────────────────────────┘  │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │                   SQLite 数据库                        │  │
-│  │  表: read_posts                                       │  │
-│  │  - tweet_id: 推文ID                                   │  │
-│  │  - is_read: 0/1 未读/已读                              │  │
-│  │  - created_at: 创建时间                                │  │
+│  │              SQLite / Supabase 数据库                  │  │
+│  │  表: twitter_posts, xueqiu_posts, settings            │  │
+│  │  - 推文/帖子存储                                       │  │
+│  │  - is_read: 已读状态                                   │  │
+│  │  - Query ID / Cookies 配置                             │  │
 │  └───────────────────────────────────────────────────────┘  │
 └──────────────────────────┬──────────────────────────────────┘
                            │ HTTPS
@@ -127,7 +127,7 @@ xueqiu_crx/
 
 ### 2. 自动刷新机制
 
-- **间隔**：15秒（平衡实时性和 API 限制）
+- **间隔**：8秒轮询数据库
 - **防缓存**：URL 加时间戳参数 `?t=Date.now()`
 - **新推文处理**：后台获取但不自动渲染，显示 "Load X posts" 按钮
 - **加载新推文**：点击后插入列表顶部，滚动到顶部，标记为已加载
@@ -249,15 +249,28 @@ HOME_LATEST_TIMELINE_QUERY_ID=MpnCeE0hy8m5eWobPx8euw
 
 ### Query ID 更新
 
-**文件**: `backend/src/services/xService.js`
+**配置位置**: 数据库 `settings` 表 或 前端设置面板
 
-**更新时机**: 遇到 "Query not found" 错误时
+**支持的 Query ID**:
+- `HOME_LATEST_TIMELINE_QUERY_ID` - Following 时间线
+- `USER_TWEETS_QUERY_ID` - 用户推文
+- `USER_BY_SCREEN_NAME_QUERY_ID` - 用户名解析
 
-**步骤**:
-1. 打开 x.com → F12 → Network
-2. 找到 HomeTimeline 请求
-3. 提取 Query ID：`graphql/QUERY_ID/HomeTimeline`
-4. 更新代码中的 `HOME_TIMELINE_QUERY_ID`
+**更新方式**:
+
+1. **自动检测**（推荐）
+   - 前端设置面板 → "🔍 自动从 X.com 检测"
+   - 后端自动抓取并更新到数据库
+
+2. **手动配置**
+   - 前端设置面板 → 手动输入 Query ID
+   - 或更新数据库 `settings` 表
+
+3. **从 Network 抓取**
+   - 打开 x.com → F12 → Network
+   - 找到对应请求（如 HomeLatestTimeline）
+   - 提取 Query ID：`graphql/QUERY_ID/OperationName`
+   - 粘贴到前端设置面板
 
 ## 开发指南
 
@@ -379,8 +392,8 @@ npx kill-port 3000 5173
 
 ### 技术债务
 
-- [ ] TypeScript 类型定义
-- [ ] 单元测试
+- [x] TypeScript 类型定义
+- [x] 单元测试
 - [ ] 前端状态管理（Pinia）
 - [ ] PWA 支持
 
@@ -591,6 +604,11 @@ CREATE TABLE xueqiu_posts (
 - 雪球首页 feed 同步（getHomeTimeline，关注用户帖子）
 - Twitter 监控用户支持 @handle 自动解析（GraphQL UserByScreenName）
 - UserByScreenName QueryId 支持手动配置 + 自动检测
+- **代码清理**:
+  - 删除 `auth.js`，统一使用 `getXCookies()` 从数据库获取 Cookie
+  - 重命名 `tweets.js` → `twitterQueryConfig.js`
+  - 删除未使用的 `settings.js` 和 `settings-db.js` 路由
+  - 后端日志写入 `backend.log`
 
 ### 2026-03-01
 - 添加韩语推文过滤

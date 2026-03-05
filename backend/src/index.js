@@ -1,10 +1,15 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 显式指定 .env 文件路径（backend/.env），必须在其他导入前执行
+dotenv.config({ path: join(dirname(__dirname), '.env') });
 
 import express from 'express';
 import cors from 'cors';
-import { startXueqiuSync } from './services/xueqiuSync.js';
-import { startTwitterSync } from './services/twitterSync.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,13 +40,18 @@ app.use('/api/tweets', twitterQueryConfigRouter);
 const xueqiuRouter = (await import('./routes/xueqiu.js')).default;
 app.use('/api/xueqiu', xueqiuRouter);
 
-// 启动雪球帖子同步任务
-startXueqiuSync(300000); // 每 5 分钟同步一次
-
 // Twitter 路由
 const twitterRouter = (await import('./routes/twitter.js')).default;
 app.use('/api/twitter', twitterRouter);
 
+// 动态导入同步服务（确保 dotenv 已加载）
+const { startXueqiuSync } = await import('./services/xueqiuSync.js');
+const { startTwitterSync } = await import('./services/twitterSync.js');
+
+// 启动雪球帖子同步任务
+startXueqiuSync(300000); // 每 5 分钟同步一次
+
+// 启动 Twitter 同步任务
 startTwitterSync(120000); // 每 2 分钟同步一次（Following + 监控用户）
 
 // 根路径
