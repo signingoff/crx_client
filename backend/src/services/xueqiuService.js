@@ -51,6 +51,31 @@ async function getCookie() {
 }
 
 /**
+ * 获取雪球首页 feed（关注的人发布的帖子）
+ * @param {number} count - 获取数量
+ */
+async function getHomeTimeline(count = 20) {
+  try {
+    const cookie = await getCookie();
+    const response = await axios.get(
+      `https://xueqiu.com/v2/statuses/home_timeline.json?count=${count}`,
+      {
+        headers: {
+          'Cookie': `xq_a_token=${cookie}`,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://xueqiu.com/'
+        },
+        timeout: 30000
+      }
+    );
+    return response.data;
+  } catch (e) {
+    console.log('getHomeTimeline 失败:', e.message);
+    return { statuses: [] };
+  }
+}
+
+/**
  * 使用 Playwright 或 axios 获取雪球用户时间线
  */
 async function getUserTimeline(userId, page = 1, type = 1) {
@@ -253,6 +278,7 @@ async function closeBrowser() {
 
 export default {
   getUserTimeline,
+  getHomeTimeline,
   getUserInfoByScreenName,
   parseTimelineResponse,
   parseTimelineItem,
