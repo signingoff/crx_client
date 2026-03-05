@@ -8,6 +8,9 @@
     </header>
 
     <div class="content">
+      <div class="panels">
+      <!-- 左：雪球 -->
+      <div class="panel">
       <!-- 添加用户 -->
       <div class="add-section">
         <h3>添加监控用户</h3>
@@ -76,6 +79,10 @@
         </button>
       </div>
 
+      </div><!-- /panel left -->
+
+      <!-- 右：Twitter -->
+      <div class="panel">
       <!-- Twitter 用户监控 -->
       <div class="add-section">
         <h3>🐦 Twitter 用户监控</h3>
@@ -138,6 +145,9 @@
           🔄 立即同步
         </button>
       </div>
+
+      </div><!-- /panel right -->
+      </div><!-- /panels -->
 
       <div v-if="message" :class="['message', messageType]">
         {{ message }}
@@ -344,9 +354,20 @@ h1 {
 }
 
 .content {
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.panels {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.panel {
+  flex: 1;
+  min-width: 0;
 }
 
 .add-section, .table-section, .sync-section {
