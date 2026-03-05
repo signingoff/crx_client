@@ -2,6 +2,7 @@ import express from 'express';
 import { getAllTwitterPosts, markTwitterPostRead, getTweetUsers, saveTweetUser, deleteTweetUser } from '../db/supabase.js';
 import { triggerTwitterSync } from '../services/twitterSync.js';
 import { triggerTwitterUserSync } from '../services/twitterUserSync.js';
+import { getUserByScreenName } from '../services/xService.js';
 
 const router = express.Router();
 
@@ -72,11 +73,27 @@ router.get('/users', async (req, res) => {
  */
 router.post('/users', async (req, res) => {
   try {
-    const { user_id, screen_name, profile_image_url, description } = req.body;
+    let { user_id, screen_name, profile_image_url, description } = req.body;
     if (!user_id) {
       return res.status(400).json({ success: false, error: 'user_id is required' });
     }
-    const ok = await saveTweetUser({ user_id: String(user_id), screen_name, profile_image_url, description });
+
+    // 去掉前缀 @
+    const raw = String(user_id).trim().replace(/^@/, '');
+
+    // 如果不是纯数字，视为 screen_name，调用 API 解析成数字 ID
+    if (!/^\d+$/.test(raw)) {
+      const resolved = await getUserByScreenName(raw);
+      if (!resolved) {
+        return res.status(400).json({ success: false, error: `找不到用户 @${raw}，请检查用户名是否正确` });
+      }
+      user_id = resolved.id;
+      if (!screen_name) screen_name = resolved.username;
+    } else {
+      user_id = raw;
+    }
+
+    const ok = await saveTweetUser({ user_id, screen_name, profile_image_url, description });
     if (!ok) return res.status(500).json({ success: false, error: '保存失败' });
     // 后台触发一次同步
     triggerTwitterUserSync().catch(err => console.error('同步失败:', err.message));

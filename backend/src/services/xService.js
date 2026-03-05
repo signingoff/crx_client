@@ -283,6 +283,32 @@ function parseUserTweets(data) {
 }
 
 /**
+ * 通过 screen_name 获取 Twitter 用户 ID
+ * 使用 Twitter API v2，仅需 Bearer Token
+ * @param {string} screenName - 用户名（不含 @）
+ * @returns {Promise<{id: string, name: string, username: string}|null>}
+ */
+export async function getUserByScreenName(screenName) {
+  const cookies = await getXCookies();
+  try {
+    const response = await axios.get(
+      `https://api.twitter.com/2/users/by/username/${encodeURIComponent(screenName)}`,
+      {
+        headers: {
+          'authorization': `Bearer ${cookies.bearer_token}`
+        }
+      }
+    );
+    const user = response.data?.data;
+    if (!user) return null;
+    return { id: user.id, name: user.name, username: user.username };
+  } catch (error) {
+    console.error(`查询用户 @${screenName} 失败:`, error.response?.data || error.message);
+    return null;
+  }
+}
+
+/**
  * 检测文本是否为日语
  * @param {string} text - 推文文本
  * @returns {boolean} 是否包含日文字符
