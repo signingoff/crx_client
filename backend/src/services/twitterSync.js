@@ -41,10 +41,10 @@ async function syncTwitterPosts() {
       getFollowingTweets(count)
     ]);
 
-    // Tag source before merging
-    const taggedForYou = forYouTweets.map(t => ({ ...t, _isForYou: true }));
-    const taggedFollowing = followingTweets.map(t => ({ ...t, _isForYou: false }));
-    const allTweets = [...taggedForYou, ...taggedFollowing];
+    // Tag source before merging (disabled: For You sync temporarily off)
+    // const taggedForYou = forYouTweets.map(t => ({ ...t, _isForYou: true }));
+    // const taggedFollowing = followingTweets.map(t => ({ ...t, _isForYou: false }));
+    const allTweets = [...forYouTweets, ...followingTweets];
     const uniqueMap = new Map();
     for (const tweet of allTweets) {
       if (!uniqueMap.has(tweet.id)) uniqueMap.set(tweet.id, tweet);
@@ -66,7 +66,7 @@ async function syncTwitterPosts() {
       media: tweet.media?.length ? tweet.media : null,
       entities: tweet.entities || null,
       article: tweet.article || null,
-      is_for_you: tweet._isForYou ?? false,
+      // is_for_you: tweet._isForYou ?? false,  // disabled
     }));
 
     await saveTwitterPosts(dbPosts);
