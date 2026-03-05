@@ -563,19 +563,23 @@ const TWITTER_POSTS_TABLE = 'twitter_posts';
 /**
  * 保存 Twitter 推文到数据库
  * @param {Array} posts - 推文数组（已转换为 DB 格式）
+ * @returns {Promise<number>} 实际新增的推文数量
  */
 export async function saveTwitterPosts(posts) {
-  if (!supabase || !posts.length) return false;
+  if (!supabase || !posts.length) return 0;
   try {
-    const { error } = await supabase
+    // upsert 并用 .select('tweet_id') 拿回实际插入的行（忽略重复行不返回）
+    const { data, error } = await supabase
       .from(TWITTER_POSTS_TABLE)
-      .upsert(posts, { onConflict: 'tweet_id', ignoreDuplicates: false });
+      .upsert(posts, { onConflict: 'tweet_id', ignoreDuplicates: true })
+      .select('tweet_id');
     if (error) throw error;
-    console.log(`保存 ${posts.length} 条 Twitter 推文`);
-    return true;
+    const newCount = data?.length ?? 0;
+    console.log(`保存 ${newCount} 条新 Twitter 推文（提交 ${posts.length} 条）`);
+    return newCount;
   } catch (err) {
     console.error('保存 Twitter 推文失败:', err.message);
-    return false;
+    return 0;
   }
 }
 

@@ -65,14 +65,13 @@ async function syncXueqiuPosts() {
  */
 async function syncSingleUser(targetUserId) {
   try {
-    console.log(`同步用户 ${targetUserId}...`);
-
     // 首次同步（DB 中无任何帖子）才需要多翻页；增量同步固定拉少量页即可
     const hasExistingPosts = await getLatestPostCreatedAt(parseInt(targetUserId));
     const isFirstSync = !hasExistingPosts;
 
     let apiUserInfo = null;
     let totalNew = 0;
+    let userScreenName = targetUserId.toString();
 
     // 首次同步最多 50 页；增量同步逐页 upsert，整页全重复即停（无上限安全帽 10 页）
     const maxPages = isFirstSync ? 50 : 10;
@@ -87,18 +86,20 @@ async function syncSingleUser(targetUserId) {
       }
 
       const statuses = result.statuses || [];
-      console.log(`用户 ${targetUserId} 第 ${page} 页: ${statuses.length} 条`);
       if (statuses.length === 0) break;
 
       const parsed = xueqiuService.parseTimelineResponse(result);
 
+      // 第一页获取用户信息
       if (page === 1 && parsed.statuses.length > 0) {
         apiUserInfo = parsed.statuses[0]?.user || null;
+        if (apiUserInfo) {
+          userScreenName = (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim();
+        }
+        console.log(`同步用户 ${userScreenName}...`);
       }
 
-      const userScreenName = apiUserInfo
-        ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
-        : targetUserId.toString();
+      console.log(`用户 ${userScreenName} 第 ${page} 页: ${statuses.length} 条`);
 
       // 逐页 upsert，返回本页实际新增数
       const pageNew = await saveXueqiuPosts(parsed.statuses, parseInt(targetUserId), userScreenName);
@@ -106,14 +107,10 @@ async function syncSingleUser(targetUserId) {
 
       // 增量同步：本页全为重复 → 后面也不会有新帖，提前停止
       if (!isFirstSync && pageNew === 0) {
-        console.log(`用户 ${targetUserId} 第 ${page} 页全为已有帖子，停止翻页`);
+        console.log(`用户 ${userScreenName} 第 ${page} 页全为已有帖子，停止翻页`);
         break;
       }
     }
-
-    const userScreenName = apiUserInfo
-      ? (apiUserInfo.screen_name || targetUserId.toString()).replace(/\s*[-–]\s*雪球$/, '').trim()
-      : targetUserId.toString();
 
     // 无论有无新帖，始终更新用户信息（含 profile_image_url）
     if (apiUserInfo) {
