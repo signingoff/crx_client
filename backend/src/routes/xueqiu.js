@@ -1,5 +1,5 @@
 import express from 'express';
-import { getXueqiuPosts, getAllXueqiuPosts, getXueqiuUsers, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts, markXueqiuPostRead } from '../db/supabase.js';
+import { getAllXueqiuPosts, getXueqiuUsers, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts, markXueqiuPostRead } from '../db/supabase.js';
 import { triggerSync } from '../services/xueqiuSync.js';
 
 const router = express.Router();
@@ -127,27 +127,6 @@ router.delete('/users/:userId', async (req, res) => {
     res.json({
       success: result,
       message: result ? '用户删除成功' : '用户删除失败'
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
-
-/**
- * 获取已保存的雪球帖子
- * GET /api/xueqiu/saved/:userId
- */
-router.get('/saved/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const posts = await getXueqiuPosts(parseInt(userId), 500);
-
-    res.json({
-      success: true,
-      data: posts
     });
   } catch (err) {
     res.status(500).json({

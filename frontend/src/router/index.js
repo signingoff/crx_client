@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import XueqiuView from '../views/XueqiuView.vue'
-import XueqiuSettingsView from '../views/XueqiuSettingsView.vue'
+import UserSettingsView from '../views/UserSettingsView.vue'
 
 const routes = [
   {
@@ -10,19 +9,9 @@ const routes = [
     component: HomeView
   },
   {
-    path: '/xueqiu',
-    name: 'Xueqiu',
-    component: XueqiuView
-  },
-  {
-    path: '/xueqiu/settings',
-    name: 'XueqiuSettings',
-    component: XueqiuSettingsView
-  },
-  {
-    path: '/xueqiu/user/:userId',
-    name: 'XueqiuUser',
-    component: () => import('../views/XueqiuUserView.vue')
+    path: '/user_settings',
+    name: 'UserSettings',
+    component: UserSettingsView
   }
 ]
 
