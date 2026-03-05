@@ -569,17 +569,21 @@ export async function saveTwitterPosts(posts) {
  * @param {number} limit - 每页数量
  * @returns {Promise<{posts: Array, total: number}>}
  */
-export async function getAllTwitterPosts(page = 1, limit = 20) {
+export async function getAllTwitterPosts(page = 1, limit = 20, forYouOnly = false) {
   if (!supabase) return { posts: [], total: 0 };
   try {
     const from = (page - 1) * limit;
     const to = page * limit - 1;
-    const { data, count, error } = await supabase
+    let query = supabase
       .from(TWITTER_POSTS_TABLE)
       .select('*', { count: 'exact' })
       .neq('is_read', true)
       .order('created_at', { ascending: false })
       .range(from, to);
+    if (forYouOnly) {
+      query = query.eq('is_for_you', true);
+    }
+    const { data, count, error } = await query;
     if (error) throw error;
     return { posts: data || [], total: count || 0 };
   } catch (err) {
@@ -625,6 +629,60 @@ export async function markXueqiuPostRead(id, isRead = true) {
     return true;
   } catch (err) {
     console.error('标记雪球帖子已读失败:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Twitter 用户监控
+ */
+const TWEET_USERS_TABLE = 'tweet_users';
+
+export async function getTweetUsers() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from(TWEET_USERS_TABLE)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('获取 tweet_users 失败:', err.message);
+    return [];
+  }
+}
+
+export async function saveTweetUser(user) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from(TWEET_USERS_TABLE)
+      .upsert({
+        user_id: user.user_id,
+        screen_name: user.screen_name || '',
+        profile_image_url: user.profile_image_url || '',
+        description: user.description || ''
+      }, { onConflict: 'user_id' });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('保存 tweet_users 失败:', err.message);
+    return false;
+  }
+}
+
+export async function deleteTweetUser(userId) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from(TWEET_USERS_TABLE)
+      .delete()
+      .eq('user_id', userId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('删除 tweet_users 失败:', err.message);
     return false;
   }
 }
