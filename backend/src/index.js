@@ -3,7 +3,6 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import { validateCookies } from './config/auth.js';
 import { startXueqiuSync } from './services/xueqiuSync.js';
 import { startTwitterSync } from './services/twitterSync.js';
 
@@ -27,13 +26,6 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
-// 验证 cookies（可选，仅记录警告）
-try {
-  validateCookies();
-} catch (err) {
-  console.warn('⚠️ Cookie 验证警告:', err.message);
-}
 
 // 动态加载路由（确保 dotenv 已加载）
 const twitterQueryConfigRouter = (await import('./routes/twitterQueryConfig.js')).default;

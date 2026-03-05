@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { xCookies } from '../config/auth.js';
+import { getXCookies } from '../config/settingsConfig.js';
 
 /**
  * 从 X.com 自动提取 GraphQL Query ID
@@ -15,10 +15,11 @@ const X_API_BASE = 'https://x.com/i/api/graphql';
 async function testQueryId(queryId, operation) {
   const url = `${X_API_BASE}/${queryId}/${operation}`;
 
+  const cookies = await getXCookies();
   const headers = {
-    'authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
-    'x-csrf-token': xCookies.ct0,
-    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'authorization': `Bearer ${cookies.bearer_token}`,
+    'x-csrf-token': cookies.ct0,
+    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'referer': 'https://x.com/home'
   };
@@ -231,8 +232,9 @@ async function extractFromJsFiles(html) {
  * 从 x.com 主页获取 Query ID
  */
 async function extractFromHomePage() {
+  const cookies = await getXCookies();
   const headers = {
-    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'accept-language': 'en-US,en;q=0.9',
@@ -256,8 +258,9 @@ async function extractFromHomePage() {
  * HomeLatestTimeline 的 Query ID 通常在 Following 页面加载
  */
 async function extractFromFollowingPage() {
+  const cookies = await getXCookies();
   const headers = {
-    'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'accept-language': 'en-US,en;q=0.9',
@@ -340,9 +343,10 @@ export async function fetchQueryIdsFromX() {
     let candidates = mergeCandidates(homeCandidates, followingCandidates);
 
     // 步骤2: 从 JS 文件中提取 Query ID
+    const cookies = await getXCookies();
     const homeHtml = await axios.get(X_HOME_URL, {
       headers: {
-        'cookie': `auth_token=${xCookies.auth_token}; ct0=${xCookies.ct0}`,
+        'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       timeout: 30000

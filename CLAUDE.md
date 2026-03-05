@@ -80,12 +80,13 @@ xueqiu_crx/
 ├── backend/
 │   ├── src/
 │   │   ├── config/
-│   │   │   ├── auth.js       # Cookie 配置
-│   │   │   └── queryConfig.js # Query ID 配置
+│   │   │   └── settingsConfig.js # Query ID 和 Cookie 配置
 │   │   ├── db/
 │   │   │   └── sqlite.js     # SQLite 数据库
 │   │   ├── routes/
-│   │   │   └── tweets.js     # API 路由
+│   │   │   ├── twitterQueryConfig.js  # Query ID 配置路由
+│   │   │   ├── twitter.js    # Twitter API 路由
+│   │   │   └── xueqiu.js     # 雪球 API 路由
 │   │   ├── services/
 │   │   │   └── xService.js   # X API 调用
 │   │   └── index.js          # 入口文件
@@ -96,7 +97,8 @@ xueqiu_crx/
 ├── frontend/
 │   ├── src/
 │   │   ├── api/
-│   │   │   └── tweets.js     # API 封装
+│   │   │   ├── tweets.js     # API 封装（Query ID、已读标记）
+│   │   │   └── xueqiu.js     # 雪球 API 封装
 │   │   ├── components/
 │   │   │   ├── TweetCard.vue # 推文卡片组件
 │   │   │   └── TweetList.vue # 推文列表
@@ -316,10 +318,10 @@ git push origin main
 cd frontend
 vercel --prod
 
-# 4. 本地重启前后端
-taskkill -F -IM node.exe  # Windows 清理端口
-cd backend && npm run dev
-cd frontend && npm run dev
+# 4. 本地重启前后端（后端日志写入 backend.log）
+npx kill-port 3000 5173   # 清理端口
+cd backend && npm run dev > backend.log 2>&1 &
+cd ../frontend && npm run dev
 ```
 
 **部署地址：**
@@ -433,7 +435,7 @@ return tweets.filter(tweet => !isCustomFilter(tweet.text));
 ### 添加新 API 端点
 
 ```javascript
-// backend/src/routes/tweets.js
+// backend/src/routes/twitterQueryConfig.js
 router.get('/custom-endpoint', async (req, res) => {
   try {
     const data = await customService();
