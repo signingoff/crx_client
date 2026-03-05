@@ -431,7 +431,7 @@ h3 {
 }
 
 .table-wrapper {
-  max-height: 400px;
+  max-height: 390px;
   overflow-y: auto;
   border: 1px solid #e1e8ed;
   border-radius: 8px;
