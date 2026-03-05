@@ -36,12 +36,8 @@ try {
 }
 
 // 动态加载路由（确保 dotenv 已加载）
-const tweetsRouter = (await import('./routes/tweets.js')).default;
-app.use('/api/tweets', tweetsRouter);
-
-// 设置路由
-const settingsRouter = (await import('./routes/settings-db.js')).default;
-app.use('/api/settings', settingsRouter);
+const twitterQueryConfigRouter = (await import('./routes/twitterQueryConfig.js')).default;
+app.use('/api/tweets', twitterQueryConfigRouter);
 
 // 雪球网路由
 const xueqiuRouter = (await import('./routes/xueqiu.js')).default;
@@ -61,8 +57,9 @@ app.get('/', (req, res) => {
   res.json({
     message: 'X For You API Server',
     endpoints: {
-      'GET /api/tweets/for-you?count=20': '获取 For You 页面推文',
-      'GET /api/tweets/health': '健康检查'
+      'GET /api/tweets/config': '获取 Query ID 配置',
+      'GET /api/twitter/posts': '获取 Twitter 推文',
+      'GET /api/xueqiu/posts': '获取雪球帖子'
     }
   });
 });

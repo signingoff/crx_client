@@ -1,0 +1,24 @@
+{
+  "data": {
+    "user": {
+      "result": {
+        "__typename": "User",
+        "id": "VXNlcjo5ODc2NTQzMjE=",
+        "rest_id": "987654321",
+        "is_blue_verified": false,
+        "legacy": {
+          "screen_name": "testuser",
+          "name": "Test User",
+          "profile_image_url_https": "https://pbs.twimg.com/profile_images/test_normal.jpg",
+          "description": "Test bio description",
+          "location": "Test City",
+          "created_at": "Mon Jan 01 00:00:00 +0000 2020",
+          "friends_count": 100,
+          "followers_count": 200,
+          "statuses_count": 500,
+          "verified": false
+        }
+      }
+    }
+  }
+}

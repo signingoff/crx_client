@@ -1,0 +1,119 @@
+{
+  "data": {
+    "home": {
+      "home_timeline_urt": {
+        "instructions": [
+          {
+            "type": "TimelineAddEntries",
+            "entries": [
+              {
+                "entryId": "tweet-123456",
+                "sortIndex": "999999999",
+                "content": {
+                  "entryType": "TimelineTimelineItem",
+                  "itemContent": {
+                    "itemType": "TimelineTweet",
+                    "tweet_results": {
+                      "result": {
+                        "__typename": "Tweet",
+                        "rest_id": "123456789",
+                        "core": {
+                          "user_results": {
+                            "result": {
+                              "__typename": "User",
+                              "id": "VXNlcjo5ODc2NTQzMjE=",
+                              "rest_id": "987654321",
+                              "legacy": {
+                                "screen_name": "testuser",
+                                "name": "Test User",
+                                "profile_image_url_https": "https://pbs.twimg.com/profile_images/test_normal.jpg",
+                                "description": "Test bio",
+                                "location": "Test City",
+                                "created_at": "Mon Jan 01 00:00:00 +0000 2020",
+                                "friends_count": 100,
+                                "followers_count": 200
+                              }
+                            }
+                          }
+                        },
+                        "legacy": {
+                          "created_at": "Mon Jan 15 10:30:00 +0000 2024",
+                          "id_str": "123456789",
+                          "full_text": "This is a test tweet for unit testing purposes.",
+                          "user_id_str": "987654321",
+                          "reply_count": 5,
+                          "retweet_count": 10,
+                          "favorite_count": 20,
+                          "entities": {
+                            "hashtags": [],
+                            "urls": [],
+                            "user_mentions": []
+                          }
+                        },
+                        "views": {
+                          "count": "1000"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "entryId": "tweet-987654",
+                "sortIndex": "999999998",
+                "content": {
+                  "entryType": "TimelineTimelineItem",
+                  "itemContent": {
+                    "itemType": "TimelineTweet",
+                    "tweet_results": {
+                      "result": {
+                        "__typename": "Tweet",
+                        "rest_id": "987654321",
+                        "core": {
+                          "user_results": {
+                            "result": {
+                              "__typename": "User",
+                              "id": "VXNlcjo1Njc4OTAxMjM=",
+                              "rest_id": "567890123",
+                              "legacy": {
+                                "screen_name": "anotheruser",
+                                "name": "Another User",
+                                "profile_image_url_https": "https://pbs.twimg.com/profile_images/another_normal.jpg",
+                                "description": "Another test bio",
+                                "location": "Another City",
+                                "created_at": "Tue Feb 01 00:00:00 +0000 2021",
+                                "friends_count": 50,
+                                "followers_count": 150
+                              }
+                            }
+                          }
+                        },
+                        "legacy": {
+                          "created_at": "Mon Jan 15 09:00:00 +0000 2024",
+                          "id_str": "987654321",
+                          "full_text": "これは日本語のツイートです。フィルタリングのテストに使います。",
+                          "user_id_str": "567890123",
+                          "reply_count": 2,
+                          "retweet_count": 5,
+                          "favorite_count": 8,
+                          "entities": {
+                            "hashtags": [],
+                            "urls": [],
+                            "user_mentions": []
+                          }
+                        },
+                        "views": {
+                          "count": "500"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

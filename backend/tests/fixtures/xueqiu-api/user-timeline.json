@@ -1,0 +1,45 @@
+{
+  "maxPage": 10,
+  "statuses": [
+    {
+      "id": 123456789,
+      "user_id": 12345,
+      "title": "Test Xueqiu Post Title",
+      "description": "This is a test post from Xueqiu for testing purposes.",
+      "created_at": 1705312800000,
+      "view_count": 1000,
+      "reply_count": 5,
+      "retweet_count": 3,
+      "fav_count": 20,
+      "source": "iPhone",
+      "user": {
+        "id": 12345,
+        "screen_name": "TestInvestor",
+        "profile_image_url": "https://avatars.xueqiu.com/test.jpg",
+        "description": "Test investor bio",
+        "followers_count": 1000,
+        "friends_count": 50
+      }
+    },
+    {
+      "id": 987654321,
+      "user_id": 12345,
+      "title": "Another Test Post",
+      "description": "Another test post with different content for variety in testing.",
+      "created_at": 1705226400000,
+      "view_count": 500,
+      "reply_count": 2,
+      "retweet_count": 1,
+      "fav_count": 10,
+      "source": "Android",
+      "user": {
+        "id": 12345,
+        "screen_name": "TestInvestor",
+        "profile_image_url": "https://avatars.xueqiu.com/test.jpg",
+        "description": "Test investor bio",
+        "followers_count": 1000,
+        "friends_count": 50
+      }
+    }
+  ]
+}

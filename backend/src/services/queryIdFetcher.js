@@ -56,50 +56,37 @@ async function testQueryId(queryId, operation) {
  */
 function extractQueryIdsFromHtml(html) {
   const results = {
-    homeTimeline: [],
     homeLatestTimeline: [],
     userTweets: [],
     userByScreenName: []
   };
 
-  // X.com 的 Query ID 通常是 22 位的 base64-like 字符串
-  const queryIdPattern = /[A-Za-z0-9_-]{22}/g;
-  const allMatches = html.match(queryIdPattern) || [];
-
-  // 查找 HomeTimeline 相关的 Query ID
-  // 模式1: "HomeTimeline":"xxxxx"
-  const homeTimelineRegex1 = /HomeTimeline["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{22})/gi;
   let match;
-  while ((match = homeTimelineRegex1.exec(html)) !== null) {
-    results.homeTimeline.push(match[1]);
-  }
 
-  // 模式2: HomeLatestTimeline
+  // 模式1: HomeLatestTimeline
   const homeLatestRegex1 = /HomeLatestTimeline["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{22})/gi;
   while ((match = homeLatestRegex1.exec(html)) !== null) {
     results.homeLatestTimeline.push(match[1]);
   }
 
-  // 模式3: UserTweets
+  // 模式2: UserTweets
   const userTweetsRegex1 = /UserTweets["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{22})/gi;
   while ((match = userTweetsRegex1.exec(html)) !== null) {
     results.userTweets.push(match[1]);
   }
 
-  // 模式4: UserByScreenName
+  // 模式3: UserByScreenName
   const userByScreenNameRegex1 = /UserByScreenName["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{22})/gi;
   while ((match = userByScreenNameRegex1.exec(html)) !== null) {
     results.userByScreenName.push(match[1]);
   }
 
-  // 模式5: operationName 模式
-  const opRegex = /operationName["']?\s*:\s*["']?(Home(?:Latest)?Timeline|UserTweets|UserByScreenName)["']?[^}]*queryId["']?\s*:\s*["']?([A-Za-z0-9_-]{22})/gi;
+  // 模式4: operationName 模式
+  const opRegex = /operationName["']?\s*:\s*["']?(HomeLatestTimeline|UserTweets|UserByScreenName)["']?[^}]*queryId["']?\s*:\s*["']?([A-Za-z0-9_-]{22})/gi;
   while ((match = opRegex.exec(html)) !== null) {
     const opName = match[1];
     const queryId = match[2];
-    if (opName === 'HomeTimeline') {
-      results.homeTimeline.push(queryId);
-    } else if (opName === 'HomeLatestTimeline') {
+    if (opName === 'HomeLatestTimeline') {
       results.homeLatestTimeline.push(queryId);
     } else if (opName === 'UserTweets') {
       results.userTweets.push(queryId);
@@ -109,7 +96,6 @@ function extractQueryIdsFromHtml(html) {
   }
 
   // 去重
-  results.homeTimeline = [...new Set(results.homeTimeline)];
   results.homeLatestTimeline = [...new Set(results.homeLatestTimeline)];
   results.userTweets = [...new Set(results.userTweets)];
   results.userByScreenName = [...new Set(results.userByScreenName)];
@@ -159,27 +145,14 @@ function extractJsUrls(html) {
  */
 function extractQueryIdsFromJs(jsContent) {
   const results = {
-    homeTimeline: [],
     homeLatestTimeline: [],
     userTweets: [],
     userByScreenName: []
   };
 
-  // 模式1: 查找 HomeTimeline 相关的 Query ID
-  // 格式通常是: {queryId:"xxxxx",operationName:"HomeTimeline"}
-  const homeTimelineRegex = /queryId[^}]*["']([A-Za-z0-9_-]{22})["'][^}]*operationName[^}]*["']HomeTimeline["']/gi;
   let match;
-  while ((match = homeTimelineRegex.exec(jsContent)) !== null) {
-    results.homeTimeline.push(match[1]);
-  }
 
-  // 反向顺序也尝试
-  const homeTimelineRegex2 = /operationName[^}]*["']HomeTimeline["'][^}]*queryId[^}]*["']([A-Za-z0-9_-]{22})["']/gi;
-  while ((match = homeTimelineRegex2.exec(jsContent)) !== null) {
-    results.homeTimeline.push(match[1]);
-  }
-
-  // 模式2: 查找 HomeLatestTimeline 相关的 Query ID
+  // 模式1: 查找 HomeLatestTimeline 相关的 Query ID
   const homeLatestRegex = /queryId[^}]*["']([A-Za-z0-9_-]{22})["'][^}]*operationName[^}]*["']HomeLatestTimeline["']/gi;
   while ((match = homeLatestRegex.exec(jsContent)) !== null) {
     results.homeLatestTimeline.push(match[1]);
@@ -213,7 +186,6 @@ function extractQueryIdsFromJs(jsContent) {
   }
 
   // 去重
-  results.homeTimeline = [...new Set(results.homeTimeline)];
   results.homeLatestTimeline = [...new Set(results.homeLatestTimeline)];
   results.userTweets = [...new Set(results.userTweets)];
   results.userByScreenName = [...new Set(results.userByScreenName)];
@@ -228,7 +200,6 @@ async function extractFromJsFiles(html) {
   const jsUrls = extractJsUrls(html);
 
   const allResults = {
-    homeTimeline: [],
     homeLatestTimeline: [],
     userTweets: [],
     userByScreenName: []
@@ -239,7 +210,6 @@ async function extractFromJsFiles(html) {
       const jsContent = await fetchJsFile(url);
       if (jsContent) {
         const results = extractQueryIdsFromJs(jsContent);
-        allResults.homeTimeline.push(...results.homeTimeline);
         allResults.homeLatestTimeline.push(...results.homeLatestTimeline);
         allResults.userTweets.push(...results.userTweets);
         allResults.userByScreenName.push(...results.userByScreenName);
@@ -250,7 +220,6 @@ async function extractFromJsFiles(html) {
   }
 
   // 去重
-  allResults.homeTimeline = [...new Set(allResults.homeTimeline)];
   allResults.homeLatestTimeline = [...new Set(allResults.homeLatestTimeline)];
   allResults.userTweets = [...new Set(allResults.userTweets)];
   allResults.userByScreenName = [...new Set(allResults.userByScreenName)];
@@ -278,7 +247,7 @@ async function extractFromHomePage() {
     return extractQueryIdsFromHtml(response.data);
   } catch (error) {
     console.error('Failed to fetch homepage:', error.message);
-    return { homeTimeline: [], homeLatestTimeline: [] };
+    return { homeLatestTimeline: [] };
   }
 }
 
@@ -324,10 +293,10 @@ async function extractFromFollowingPage() {
       }
     }
 
-    return { homeTimeline: [], homeLatestTimeline: [] };
+    return { homeLatestTimeline: [] };
   } catch (error) {
     console.error('Failed to fetch following page:', error.message);
-    return { homeTimeline: [], homeLatestTimeline: [] };
+    return { homeLatestTimeline: [] };
   }
 }
 
@@ -350,7 +319,6 @@ async function findWorkingQueryId(operation, knownIds) {
  */
 function mergeCandidates(c1, c2) {
   return {
-    homeTimeline: [...new Set([...c1.homeTimeline, ...c2.homeTimeline])],
     homeLatestTimeline: [...new Set([...c1.homeLatestTimeline, ...c2.homeLatestTimeline])],
     userTweets: [...new Set([...(c1.userTweets || []), ...(c2.userTweets || [])])],
     userByScreenName: [...new Set([...(c1.userByScreenName || []), ...(c2.userByScreenName || [])])]
@@ -386,16 +354,12 @@ export async function fetchQueryIdsFromX() {
     }
 
     const results = {
-      homeTimeline: null,
       homeLatestTimeline: null,
       userTweets: null,
       userByScreenName: null
     };
 
     // 步骤3: 测试提取的候选 ID
-    if (candidates.homeTimeline.length > 0) {
-      results.homeTimeline = await findWorkingQueryId('HomeTimeline', candidates.homeTimeline);
-    }
     if (candidates.homeLatestTimeline.length > 0) {
       results.homeLatestTimeline = await findWorkingQueryId('HomeLatestTimeline', candidates.homeLatestTimeline);
     }
@@ -407,13 +371,12 @@ export async function fetchQueryIdsFromX() {
     }
 
     // 返回结果
-    if (!results.homeTimeline && !results.homeLatestTimeline && !results.userTweets && !results.userByScreenName) {
+    if (!results.homeLatestTimeline && !results.userTweets && !results.userByScreenName) {
       throw new Error('无法找到有效的 Query ID。请检查 Cookie 是否过期，或手动输入 Query ID。');
     }
 
     return {
       success: true,
-      homeTimelineQueryId: results.homeTimeline,
       homeLatestTimelineQueryId: results.homeLatestTimeline,
       userTweetsQueryId: results.userTweets,
       userByScreenNameQueryId: results.userByScreenName,

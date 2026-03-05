@@ -15,10 +15,6 @@
 
           <div class="current-config" v-if="config">
             <div class="config-item">
-              <label>For You (HomeTimeline):</label>
-              <code>{{ config.homeTimelineQueryId || '未设置' }}</code>
-            </div>
-            <div class="config-item">
               <label>Following (HomeLatestTimeline):</label>
               <code>{{ config.homeLatestTimelineQueryId || '未设置' }}</code>
             </div>
@@ -49,14 +45,6 @@
 
           <div class="manual-section">
             <h5>手动更新</h5>
-            <div class="input-group">
-              <label>For You Query ID:</label>
-              <input
-                v-model="manualHomeQueryId"
-                type="text"
-                placeholder="输入 Query ID..."
-              />
-            </div>
             <div class="input-group">
               <label>Following Query ID:</label>
               <input
@@ -95,8 +83,8 @@
             <ol>
               <li>打开 <a href="https://x.com" target="_blank">x.com</a> 并登录</li>
               <li>按 F12 打开开发者工具 → Network 标签</li>
-              <li>刷新页面，过滤 "HomeTimeline"</li>
-              <li>找到请求的 URL: <code>graphql/QUERY_ID/HomeTimeline</code></li>
+              <li>刷新页面，过滤 "HomeLatestTimeline"</li>
+              <li>找到请求的 URL: <code>graphql/QUERY_ID/HomeLatestTimeline</code></li>
               <li>复制 QUERY_ID (22位字符串)</li>
             </ol>
           </div>
@@ -122,13 +110,12 @@ const config = ref(null)
 const isFetching = ref(false)
 const message = ref('')
 const messageType = ref('info')
-const manualHomeQueryId = ref('')
 const manualFollowingQueryId = ref('')
 const manualUserTweetsQueryId = ref('')
 const manualUserByScreenNameQueryId = ref('')
 
 const canManualUpdate = computed(() => {
-  return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim() || manualUserTweetsQueryId.value.trim() || manualUserByScreenNameQueryId.value.trim()
+  return manualFollowingQueryId.value.trim() || manualUserTweetsQueryId.value.trim() || manualUserByScreenNameQueryId.value.trim()
 })
 
 onMounted(async () => {
@@ -141,7 +128,6 @@ async function loadConfig() {
     const response = await getQueryConfig()
     if (response.success) {
       config.value = response.data
-      manualHomeQueryId.value = response.data.homeTimelineQueryId || ''
       manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
       manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
       manualUserByScreenNameQueryId.value = response.data.userByScreenNameQueryId || ''
@@ -160,7 +146,6 @@ async function autoFetch() {
 
     if (response.success) {
       config.value = response.data
-      manualHomeQueryId.value = response.data.homeTimelineQueryId || ''
       manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
       manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
       manualUserByScreenNameQueryId.value = response.data.userByScreenNameQueryId || ''
@@ -178,9 +163,6 @@ async function autoFetch() {
 
 async function manualUpdate() {
   try {
-    if (manualHomeQueryId.value.trim()) {
-      await updateQueryId('home', manualHomeQueryId.value.trim())
-    }
     if (manualFollowingQueryId.value.trim()) {
       await updateQueryId('following', manualFollowingQueryId.value.trim())
     }

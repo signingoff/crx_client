@@ -21,18 +21,6 @@ router.get('/sync', async (req, res) => {
 });
 
 /**
- * 健康检查
- * GET /api/xueqiu/health
- */
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: '雪球网 API 服务正常',
-    cookieConfigured: !!process.env.XUEQIU_COOKIE
-  });
-});
-
-/**
  * 获取所有雪球用户列表
  * GET /api/xueqiu/users
  */

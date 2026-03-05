@@ -11,94 +11,9 @@ let configLoaded = false;
  */
 function getQueryId(type) {
   const config = getConfig();
-  if (type === 'home') return config.homeTimelineQueryId;
   if (type === 'user') return config.userTweetsQueryId;
   if (type === 'userByScreenName') return config.userByScreenNameQueryId;
   return config.homeLatestTimelineQueryId;
-}
-
-/**
- * 获取 For You 页面的推文
- * @param {number} count - 获取推文数量
- * @returns {Promise<Array>} 推文列表
- */
-export async function getForYouTweets(count = 20) {
-  // 懒加载配置
-  if (!configLoaded) {
-    await loadConfigFromDB();
-    configLoaded = true;
-  }
-
-  const queryId = getQueryId('home');
-  const url = `${X_API_BASE}/${queryId}/HomeTimeline`;
-
-  // 从数据库获取最新的 cookies
-  const cookies = await getXCookies();
-
-  const headers = {
-    'authorization': `Bearer ${cookies.bearer_token}`,
-    'x-csrf-token': cookies.ct0,
-    'x-twitter-active-user': 'yes',
-    'x-twitter-auth-type': 'OAuth2Session',
-    'x-twitter-client-language': 'en',
-    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'accept': '*/*',
-    'accept-language': 'en-US,en;q=0.9',
-    'accept-encoding': 'gzip, deflate, br',
-    'referer': 'https://x.com/home',
-    'origin': 'https://x.com'
-  };
-
-  const variables = {
-    count,
-    includePromotedContent: true,
-    latestControlAvailable: true,
-    requestContext: 'home',
-    withCommunity: true,
-    withDownvotePerspective: false,
-    withReactionsMetadata: false,
-    withReactionsPerspective: false,
-    withSuperFollowsUserFields: true
-  };
-
-  const features = {
-    blue_business_profile_image_shape_enabled: true,
-    responsive_web_graphql_exclude_directive_enabled: true,
-    verified_phone_label_enabled: false,
-    responsive_web_home_pinned_timelines_enabled: true,
-    creator_subscriptions_tweet_preview_api_enabled: true,
-    responsive_web_graphql_timeline_navigation_enabled: true,
-    responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-    tweetypie_unmention_optimization_enabled: true,
-    responsive_web_edit_tweet_api_enabled: true,
-    graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
-    view_counts_everywhere_api_enabled: true,
-    longform_notetweets_consumption_enabled: true,
-    responsive_web_twitter_article_tweet_consumption_enabled: false,
-    tweet_awards_web_tipping_enabled: false,
-    freedom_of_speech_not_reach_fetch_enabled: true,
-    standardized_nudges_misinfo: true,
-    tweet_with_visibility_results_include_grok_learning_analyzing: false,
-    tweet_with_visibility_results_include_grok_analyzed_label: false,
-    responsive_web_media_download_video_enabled: false
-  };
-
-  try {
-    const response = await axios.get(url, {
-      headers,
-      params: {
-        variables: JSON.stringify(variables),
-        features: JSON.stringify(features)
-      }
-    });
-
-    const tweets = parseTweets(response.data);
-    return tweets.filter(tweet => !isJapaneseText(tweet.text) && !isKoreanText(tweet.text));
-  } catch (error) {
-    console.error('Error fetching For You tweets:', error.response?.data || error.message);
-    throw new Error('Failed to fetch For You tweets. Please check your cookies.');
-  }
 }
 
 /**
