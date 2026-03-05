@@ -2,12 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// 显式加载 .env 文件（确保在读取环境变量前执行）
-dotenv.config({ path: join(dirname(__dirname), '../.env') });
+// 兼容本地开发（.env 文件）和云平台（环境变量）
+// 如果环境变量已存在（如 onrender），跳过 .env 加载
+if (!process.env.SUPABASE_URL) {
+  const envPath = join(dirname(__dirname), '../.env');
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+}
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY; // 使用 service_role key，绕过 RLS
