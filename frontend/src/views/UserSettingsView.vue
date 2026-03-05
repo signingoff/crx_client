@@ -444,7 +444,7 @@ h3 {
 
 .user-table th {
   background: #f7f9fa;
-  padding: 12px 16px;
+  padding: 8px 16px;
   text-align: left;
   font-weight: 600;
   font-size: 13px;
@@ -454,7 +454,7 @@ h3 {
 }
 
 .user-table td {
-  padding: 12px 16px;
+  padding: 6px 16px;
   border-top: 1px solid #e1e8ed;
   font-size: 14px;
 }
