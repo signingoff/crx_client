@@ -3,8 +3,8 @@
     <header class="header">
       <h1>🔥 X For You</h1>
       <div class="header-actions">
-        <router-link to="/xueqiu" class="nav-link" title="雪球发言">
-          ❄️
+        <router-link to="/user_settings" class="nav-link" title="用户管理">
+          👥
         </router-link>
 <button class="settings-btn" @click="openSettings" title="设置">
           🔧

@@ -3,7 +3,7 @@
     <header class="header">
       <div class="header-left">
         <router-link to="/" class="back-btn">← 返回</router-link>
-        <h1>❄️ 雪球用户管理</h1>
+        <h1>👥 用户管理</h1>
       </div>
     </header>
 
