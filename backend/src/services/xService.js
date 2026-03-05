@@ -11,9 +11,9 @@ let configLoaded = false;
  */
 function getQueryId(type) {
   const config = getConfig();
-  return type === 'home'
-    ? config.homeTimelineQueryId
-    : config.homeLatestTimelineQueryId;
+  if (type === 'home') return config.homeTimelineQueryId;
+  if (type === 'user') return config.userTweetsQueryId;
+  return config.homeLatestTimelineQueryId;
 }
 
 /**
@@ -183,6 +183,103 @@ export async function getFollowingTweets(count = 20) {
     // 如果失败，返回空数组，不中断流程
     return [];
   }
+}
+
+/**
+ * 获取指定用户的推文
+ * @param {string} userId - 用户的数字 ID（字符串形式）
+ * @param {number} count - 获取数量
+ * @returns {Promise<Array>}
+ */
+export async function getUserTweets(userId, count = 20) {
+  if (!configLoaded) {
+    await loadConfigFromDB();
+    configLoaded = true;
+  }
+
+  const queryId = getQueryId('user');
+  if (!queryId) {
+    console.warn('USER_TWEETS_QUERY_ID 未配置，跳过用户 timeline 抓取');
+    return [];
+  }
+
+  const url = `${X_API_BASE}/${queryId}/UserTweets`;
+  const cookies = await getXCookies();
+
+  const headers = {
+    'authorization': `Bearer ${cookies.bearer_token}`,
+    'x-csrf-token': cookies.ct0,
+    'x-twitter-active-user': 'yes',
+    'x-twitter-auth-type': 'OAuth2Session',
+    'x-twitter-client-language': 'en',
+    'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'accept': '*/*',
+    'accept-language': 'en-US,en;q=0.9',
+    'referer': `https://x.com/`,
+    'origin': 'https://x.com'
+  };
+
+  const variables = {
+    userId,
+    count,
+    includePromotedContent: false,
+    withQuotedTweets: true,
+    withSuperFollowsUserFields: true
+  };
+
+  const features = {
+    blue_business_profile_image_shape_enabled: true,
+    responsive_web_graphql_exclude_directive_enabled: true,
+    verified_phone_label_enabled: false,
+    creator_subscriptions_tweet_preview_api_enabled: true,
+    responsive_web_graphql_timeline_navigation_enabled: true,
+    responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+    tweetypie_unmention_optimization_enabled: true,
+    responsive_web_edit_tweet_api_enabled: true,
+    graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
+    view_counts_everywhere_api_enabled: true,
+    longform_notetweets_consumption_enabled: true,
+    tweet_awards_web_tipping_enabled: false,
+    freedom_of_speech_not_reach_fetch_enabled: true,
+    standardized_nudges_misinfo: true,
+    responsive_web_media_download_video_enabled: false
+  };
+
+  try {
+    const response = await axios.get(url, {
+      headers,
+      params: {
+        variables: JSON.stringify(variables),
+        features: JSON.stringify(features)
+      }
+    });
+    return parseUserTweets(response.data);
+  } catch (error) {
+    console.error(`获取用户 ${userId} 推文失败:`, error.response?.data || error.message);
+    return [];
+  }
+}
+
+/**
+ * 解析 UserTweets API 响应
+ */
+function parseUserTweets(data) {
+  const tweets = [];
+  const instructions =
+    data?.data?.user?.result?.timeline_v2?.timeline?.instructions ||
+    data?.data?.user?.result?.timeline?.timeline?.instructions ||
+    [];
+
+  for (const instruction of instructions) {
+    if (instruction.type === 'TimelineAddEntries') {
+      for (const entry of instruction.entries || []) {
+        const tweet = extractTweetFromEntry(entry);
+        if (tweet) tweets.push(tweet);
+      }
+    }
+  }
+  return tweets;
 }
 
 /**
