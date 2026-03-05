@@ -1,4 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 显式加载 .env 文件（确保在读取环境变量前执行）
+dotenv.config({ path: join(dirname(__dirname), '../.env') });
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY; // 使用 service_role key，绕过 RLS
