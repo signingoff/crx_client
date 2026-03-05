@@ -14,8 +14,7 @@ router.get('/posts', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
-    const forYouOnly = req.query.forYouOnly === 'true';
-    const { posts, total } = await getAllTwitterPosts(page, limit, forYouOnly);
+    const { posts, total } = await getAllTwitterPosts(page, limit);
     res.json({
       success: true,
       data: { posts, total, page, hasMore: page * limit < total }

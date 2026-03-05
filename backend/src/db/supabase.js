@@ -589,21 +589,17 @@ export async function saveTwitterPosts(posts) {
  * @param {number} limit - 每页数量
  * @returns {Promise<{posts: Array, total: number}>}
  */
-export async function getAllTwitterPosts(page = 1, limit = 20, forYouOnly = false) {
+export async function getAllTwitterPosts(page = 1, limit = 20) {
   if (!supabase) return { posts: [], total: 0 };
   try {
     const from = (page - 1) * limit;
     const to = page * limit - 1;
-    let query = supabase
+    const { data, count, error } = await supabase
       .from(TWITTER_POSTS_TABLE)
       .select('*', { count: 'exact' })
       .neq('is_read', true)
       .order('created_at', { ascending: false })
       .range(from, to);
-    if (forYouOnly) {
-      query = query.eq('is_for_you', true);
-    }
-    const { data, count, error } = await query;
     if (error) throw error;
     return { posts: data || [], total: count || 0 };
   } catch (err) {
