@@ -43,17 +43,16 @@ async function syncXueqiuPosts() {
 
     if (users.length === 0) {
       console.log('没有需要同步的雪球用户');
-      return;
+    } else {
+      const userIds = users.map(u => u.user_id.toString());
+      console.log(`开始同步 ${userIds.length} 个雪球用户的帖子...`);
+      for (const targetUserId of userIds) {
+        await syncSingleUser(targetUserId);
+      }
     }
 
-    const userIds = users.map(u => u.user_id.toString());
-
-    console.log(`开始同步 ${userIds.length} 个雪球用户的帖子...`);
-
-    // 遍历每个用户
-    for (const targetUserId of userIds) {
-      await syncSingleUser(targetUserId);
-    }
+    // 同步首页 feed
+    await syncHomeTimeline();
 
     console.log(`批量同步完成`);
   } catch (err) {
@@ -137,6 +136,27 @@ async function syncSingleUser(targetUserId) {
     }
   } catch (err) {
     console.error(`  ✗ 用户 ${targetUserId} 失败:`, err.message);
+  }
+}
+
+/**
+ * 同步雪球首页 feed（关注的人的帖子）
+ */
+async function syncHomeTimeline() {
+  try {
+    console.log('同步雪球首页 feed...');
+    const result = await xueqiuService.getHomeTimeline(20);
+    const parsed = xueqiuService.parseTimelineResponse(result);
+
+    if (parsed.statuses.length === 0) {
+      console.log('  ○ 首页 feed 无新内容');
+      return;
+    }
+
+    const newCount = await saveXueqiuPosts(parsed.statuses, 0, '');
+    console.log(`  ✓ 首页 feed 新增 ${newCount} 条`);
+  } catch (err) {
+    console.error('首页 feed 同步失败:', err.message);
   }
 }
 
