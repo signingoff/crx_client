@@ -6,7 +6,6 @@ import cors from 'cors';
 import { validateCookies } from './config/auth.js';
 import { startXueqiuSync } from './services/xueqiuSync.js';
 import { startTwitterSync } from './services/twitterSync.js';
-import { startTwitterUserSync } from './services/twitterUserSync.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,8 +54,7 @@ startXueqiuSync(300000); // 每 5 分钟同步一次
 const twitterRouter = (await import('./routes/twitter.js')).default;
 app.use('/api/twitter', twitterRouter);
 
-startTwitterSync(300000); // 每 5 分钟同步一次
-startTwitterUserSync(120000); // 每 2 分钟同步一次 Twitter 用户推文
+startTwitterSync(120000); // 每 2 分钟同步一次（Following + 监控用户）
 
 // 根路径
 app.get('/', (req, res) => {

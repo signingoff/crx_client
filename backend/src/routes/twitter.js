@@ -1,7 +1,7 @@
 import express from 'express';
 import { getAllTwitterPosts, markTwitterPostRead, getTweetUsers, saveTweetUser, deleteTweetUser } from '../db/supabase.js';
 import { triggerTwitterSync } from '../services/twitterSync.js';
-import { triggerTwitterUserSync } from '../services/twitterUserSync.js';
+import { triggerTwitterUserSync } from '../services/twitterSync.js';
 import { getUserByScreenName } from '../services/xService.js';
 
 const router = express.Router();
