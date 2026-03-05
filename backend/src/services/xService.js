@@ -139,27 +139,53 @@ export async function getUserTweets(userId, count = 20) {
   const variables = {
     userId,
     count,
-    includePromotedContent: false,
-    withQuotedTweets: true,
-    withSuperFollowsUserFields: true
+    includePromotedContent: true,
+    withQuickPromoteEligibilityTweetFields: true,
+    withVoice: true
   };
 
   const features = {
-    blue_business_profile_image_shape_enabled: true,
-    responsive_web_graphql_exclude_directive_enabled: true,
+    rweb_video_screen_enabled: false,
+    profile_label_improvements_pcf_label_in_post_enabled: true,
+    responsive_web_profile_redirect_enabled: false,
+    rweb_tipjar_consumption_enabled: false,
     verified_phone_label_enabled: false,
     creator_subscriptions_tweet_preview_api_enabled: true,
     responsive_web_graphql_timeline_navigation_enabled: true,
     responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-    tweetypie_unmention_optimization_enabled: true,
+    premium_content_api_read_enabled: false,
+    communities_web_enable_tweet_community_results_fetch: true,
+    c9s_tweet_anatomy_moderator_badge_enabled: true,
+    responsive_web_grok_analyze_button_fetch_trends_enabled: false,
+    responsive_web_grok_analyze_post_followups_enabled: true,
+    responsive_web_jetfuel_frame: true,
+    responsive_web_grok_share_attachment_enabled: true,
+    responsive_web_grok_annotations_enabled: true,
+    articles_preview_enabled: true,
     responsive_web_edit_tweet_api_enabled: true,
     graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
     view_counts_everywhere_api_enabled: true,
     longform_notetweets_consumption_enabled: true,
+    responsive_web_twitter_article_tweet_consumption_enabled: true,
     tweet_awards_web_tipping_enabled: false,
+    content_disclosure_indicator_enabled: true,
+    content_disclosure_ai_generated_indicator_enabled: true,
+    responsive_web_grok_show_grok_translated_post: true,
+    responsive_web_grok_analysis_button_from_backend: true,
+    post_ctas_fetch_enabled: true,
     freedom_of_speech_not_reach_fetch_enabled: true,
     standardized_nudges_misinfo: true,
-    responsive_web_media_download_video_enabled: false
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    longform_notetweets_rich_text_read_enabled: true,
+    longform_notetweets_inline_media_enabled: true,
+    responsive_web_grok_image_annotation_enabled: true,
+    responsive_web_grok_imagine_annotation_enabled: true,
+    responsive_web_grok_community_note_auto_translation_is_enabled: false,
+    responsive_web_enhance_cards_enabled: false
+  };
+
+  const fieldToggles = {
+    withArticlePlainText: false
   };
 
   try {
@@ -167,12 +193,17 @@ export async function getUserTweets(userId, count = 20) {
       headers,
       params: {
         variables: JSON.stringify(variables),
-        features: JSON.stringify(features)
+        features: JSON.stringify(features),
+        fieldToggles: JSON.stringify(fieldToggles)
       }
     });
     return parseUserTweets(response.data);
   } catch (error) {
-    console.error(`获取用户 ${userId} 推文失败:`, error.response?.data || error.message);
+    console.error(`[DEBUG] 获取用户 ${userId} 推文失败:`, {
+      status: error.response?.status,
+      data: error.response?.data,
+      queryId
+    });
     return [];
   }
 }
@@ -237,17 +268,37 @@ export async function getUserByScreenName(screenName) {
   };
 
   try {
-    const response = await axios.get(url, {
+    const headers = {
+      'authorization': `Bearer ${cookies.bearer_token}`,
+      'x-csrf-token': cookies.ct0,
+      'x-twitter-active-user': 'yes',
+      'x-twitter-auth-type': 'OAuth2Session',
+      'x-twitter-client-language': 'en',
+      'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'accept': '*/*',
+      'accept-language': 'en-US,en;q=0.9',
+      'accept-encoding': 'gzip, deflate, br',
+      'referer': 'https://x.com/',
+      'origin': 'https://x.com',
+      'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'sec-fetch-site': 'same-origin'
+    };
+
+    console.log('[DEBUG] UserByScreenName 请求:', {
+      url: url.replace(cookies.bearer_token?.slice(-10) || '', '...'),
       headers: {
-        'authorization': `Bearer ${cookies.bearer_token}`,
-        'x-csrf-token': cookies.ct0,
-        'x-twitter-active-user': 'yes',
-        'x-twitter-auth-type': 'OAuth2Session',
-        'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'referer': 'https://x.com/',
-        'origin': 'https://x.com'
-      },
+        'x-csrf-token': headers['x-csrf-token']?.slice(-10) + '...',
+        'cookie': headers['cookie']?.replace(/auth_token=[^;]+/, 'auth_token=...')
+      }
+    });
+
+    const response = await axios.get(url, {
+      headers,
       params: {
         variables: JSON.stringify(variables),
         features: JSON.stringify(features)
@@ -260,10 +311,21 @@ export async function getUserByScreenName(screenName) {
     return {
       id: result.rest_id || legacy.id_str,
       name: legacy.name,
-      username: legacy.screen_name
+      username: result.core?.screen_name || legacy.screen_name,
+      description: legacy.description,
+      profile_image_url: result.avatar?.image_url?.replace('_normal', '')
     };
   } catch (error) {
-    console.error(`查询用户 @${screenName} 失败:`, error.response?.data || error.message);
+    console.error(`[DEBUG] 查询用户 @${screenName} 失败:`, {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      headers_sent: {
+        bearer_token_length: cookies.bearer_token?.length,
+        ct0_length: cookies.ct0?.length,
+        auth_token_length: cookies.auth_token?.length
+      }
+    });
     return null;
   }
 }

@@ -2,7 +2,7 @@ import express from 'express';
 import { getAllTwitterPosts, markTwitterPostRead, getTweetUsers, saveTweetUser, deleteTweetUser } from '../db/supabase.js';
 import { triggerTwitterSync } from '../services/twitterSync.js';
 import { triggerTwitterUserSync } from '../services/twitterSync.js';
-import { getUserByScreenName } from '../services/xService.js';
+import { getUserByScreenName, getUserTweets } from '../services/xService.js';
 
 const router = express.Router();
 
@@ -80,6 +80,7 @@ router.post('/users', async (req, res) => {
 
     // 去掉前缀 @
     const raw = String(user_id).trim().replace(/^@/, '');
+    let isScreenName = false;
 
     // 如果不是纯数字，视为 screen_name，调用 API 解析成数字 ID
     if (!/^\d+$/.test(raw)) {
@@ -89,19 +90,53 @@ router.post('/users', async (req, res) => {
       }
       user_id = resolved.id;
       if (!screen_name) screen_name = resolved.username;
+      if (!description) description = resolved.description;
+      isScreenName = true;
     } else {
       user_id = raw;
     }
 
+    // 先保存用户（可能只有 user_id）
     const ok = await saveTweetUser({ user_id, screen_name, profile_image_url, description });
     if (!ok) return res.status(500).json({ success: false, error: '保存失败' });
+
+    // 如果是纯数字 ID 且没有用户信息，后台异步获取
+    if (!isScreenName && (!screen_name || !description)) {
+      // 异步更新用户信息，不阻塞响应
+      updateUserInfoAsync(user_id);
+    }
+
     // 后台触发一次同步
     triggerTwitterUserSync().catch(err => console.error('同步失败:', err.message));
-    res.json({ success: true, message: '用户添加成功' });
+
+    // 立即返回成功，不等待后台更新
+    res.json({ success: true, message: '用户添加成功，后台正在同步用户信息...' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+/**
+ * 异步更新用户信息（不阻塞前端）
+ */
+async function updateUserInfoAsync(userId) {
+  try {
+    // 通过获取用户推文来获取作者信息
+    const tweets = await getUserTweets(userId, 1);
+    if (tweets.length > 0 && tweets[0].author) {
+      const author = tweets[0].author;
+      await saveTweetUser({
+        user_id: userId,
+        screen_name: author.username || '',
+        profile_image_url: author.avatar || '',
+        description: author.description || ''
+      });
+      console.log(`✓ 用户 ${author.username || userId} 信息已更新`);
+    }
+  } catch (err) {
+    console.error(`更新用户 ${userId} 信息失败:`, err.message);
+  }
+}
 
 /**
  * DELETE /api/twitter/users/:userId

@@ -58,7 +58,7 @@ async function getHomeTimeline(count = 20) {
   try {
     const cookie = await getCookie();
     const response = await axios.get(
-      `https://xueqiu.com/v2/statuses/home_timeline.json?count=${count}`,
+      `https://xueqiu.com/v4/statuses/home_timeline.json?source=user&count=${count}`,
       {
         headers: {
           'Cookie': `xq_a_token=${cookie}`,

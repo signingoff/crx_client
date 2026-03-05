@@ -1,5 +1,5 @@
 import { getFollowingTweets, getUserTweets } from './xService.js';
-import { saveTwitterPosts, getTweetUsers } from '../db/supabase.js';
+import { saveTwitterPosts, getTweetUsers, saveTweetUser } from '../db/supabase.js';
 
 let followingInterval = null;
 let userInterval = null;
@@ -105,6 +105,19 @@ async function syncSingleUser(user) {
       return;
     }
 
+    // 获取第一条推文的作者信息来更新用户资料
+    const firstTweet = tweets[0];
+    const author = firstTweet?.author;
+    if (author && author.username) {
+      // 更新用户信息
+      await saveTweetUser({
+        user_id: user.user_id,
+        screen_name: author.username,
+        profile_image_url: author.avatar || '',
+        description: author.description || ''
+      });
+    }
+
     const dbPosts = tweets.map(tweet => ({
       tweet_id: tweet.id,
       text: tweet.text,
@@ -123,7 +136,7 @@ async function syncSingleUser(user) {
     }));
 
     await saveTwitterPosts(dbPosts);
-    console.log(`  ✓ ${user.screen_name || user.user_id}: 同步 ${dbPosts.length} 条`);
+    console.log(`  ✓ ${author?.username || user.screen_name || user.user_id}: 同步 ${dbPosts.length} 条`);
   } catch (err) {
     console.error(`  ✗ 用户 ${user.user_id} 同步失败:`, err.message);
   }
