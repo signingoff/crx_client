@@ -278,9 +278,9 @@ async function addTwitterUser() {
   }
   try {
     await axios.post(`${API_BASE}/twitter/users`, { user_id: id })
-    twitterUserList.value.push({ user_id: id, screen_name: '', description: '' })
-    showMessage('✅ 添加成功，后台正在同步...', 'success')
     newTwitterUserId.value = ''
+    await loadTwitterUsers()
+    showMessage('✅ 添加成功，后台正在同步...', 'success')
   } catch (err) {
     showMessage('❌ 添加失败: ' + err.message, 'error')
   }
@@ -373,8 +373,8 @@ h1 {
 .add-section, .table-section, .sync-section {
   background: white;
   border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 12px;
+  margin-bottom: 10px;
 }
 
 h3 {
