@@ -344,10 +344,9 @@ npx kill-port 3000 5173
 
 ### 已实现功能
 
-- [x] 单栏推文列表展示
-- [x] 自动刷新（15秒间隔）
+- [x] 单栏推文/帖子混合列表展示（Twitter Following + 雪球帖子，按时间倒排）
+- [x] 自动刷新（8秒轮询数据库）
 - [x] 日语/韩语推文过滤
-- [x] 已加载推文过滤（SQLite）
 - [x] 三连击切换已读/未读
 - [x] 用户详细信息显示（简介、位置、关注/粉丝数、注册时间）
 - [x] 图片网格布局 + Lightbox
@@ -355,12 +354,18 @@ npx kill-port 3000 5173
 - [x] 话题标签高亮
 - [x] 长推文 Show more/less
 - [x] 转发推文识别
-- [x] X.com 跳转按钮
+- [x] 来源感知跳转按钮（❄️ 雪球帖子 / X.com 推文）
 - [x] 浏览器窗口滚动
-- [x] 韩语推文过滤
 - [x] X 文章卡片显示（x.com/i/article）
-- [x] 已读状态自动同步（每5秒）
+- [x] 已读状态存储（Supabase）
 - [x] 部署到 Render + Vercel
+- [x] Twitter Following 推文同步（2分钟间隔）
+- [x] Twitter 监控用户推文同步（2分钟间隔，同文件 twitterSync.js）
+- [x] Twitter 监控用户支持 @handle 自动解析为数字 ID（GraphQL UserByScreenName）
+- [x] 雪球用户帖子同步（5分钟间隔）
+- [x] 雪球首页 feed 同步（关注用户帖子）
+- [x] 用户管理页（/user_settings）左右双栏布局，分别管理雪球和 Twitter 用户
+- [x] Query ID 自动检测 + 手动配置（含 UserByScreenName QueryId）
 
 ### 待实现功能
 
@@ -492,27 +497,30 @@ backend (Express)
 ### 技术方案
 
 - **认证方式**: 用户提供 Cookie (xq_a_token)
-措施**: Pupp- **反爬eteer 无头浏览器
+- **请求方式**: axios 直接请求（不使用 Puppeteer）
 - **数据库表**:
   - `xueqiu_users` - 存储监控用户信息
   - `xueqiu_posts` - 存储用户帖子
 - **API 端点**:
-  - `GET /api/xueqiu/users` - 获取用户列表
-  - `POST /api/xueqiu/users` - 添加用户
-  - `DELETE /api/xueqiu/users/:userId` - 删除用户
-  - `GET /api/xueqiu/user/:userId` - 获取用户时间线
-  - `GET /api/xueqiu/user/:userId/info` - 获取用户信息
+  - `GET /api/xueqiu/posts` - 获取帖子列表（分页）
+  - `POST /api/xueqiu/posts/:id/read` - 标记已读/未读
+  - `GET /api/xueqiu/sync` - 手动触发同步
+  - `GET /api/xueqiu/users` - 获取监控用户列表
+  - `POST /api/xueqiu/users` - 添加监控用户
+  - `DELETE /api/xueqiu/users/:userId` - 删除监控用户
 
 ### 关键文件
 
 | 文件 | 说明 |
 |------|------|
-| `backend/src/services/xueqiuService.js` | 雪球 API 服务 |
-| `backend/src/services/xueqiuSync.js` | 同步服务 |
+| `backend/src/services/xueqiuService.js` | 雪球 API 服务（含 getHomeTimeline） |
+| `backend/src/services/xueqiuSync.js` | 同步服务（含 syncHomeTimeline） |
+| `backend/src/services/twitterSync.js` | Twitter Following + 监控用户同步（合并后） |
 | `backend/src/routes/xueqiu.js` | 后端路由 |
+| `backend/src/routes/twitter.js` | Twitter 路由（posts/users/sync） |
 | `backend/src/db/supabase.js` | 数据库操作 |
-| `frontend/src/views/XueqiuView.vue` | 雪球页面 |
-| `frontend/src/views/XueqiuSettingsView.vue` | 用户管理页面 |
+| `frontend/src/views/HomeView.vue` | 首页（Twitter + 雪球混合流） |
+| `frontend/src/views/UserSettingsView.vue` | 用户管理页面（左右双栏） |
 
 ### 雪球 API
 
@@ -563,12 +571,24 @@ CREATE TABLE xueqiu_posts (
 
 ### 注意事项
 
-- 雪球有反爬机制，需要使用 Puppeteer 绕过
-- Cookie 需要定期更新
+- 雪球有反爬机制，使用 xq_a_token Cookie 认证（需定期更新）
 - 添加用户时只保存 ID，后台自动同步更新用户名
 - 用户名自动去除 "-雪球" 后缀
+- 首页 feed 同步使用 `/v2/statuses/home_timeline.json`（user_id=0 存储）
 
 ## 更新日志
+
+### 2026-03-05
+- 重构首页：Twitter Following + 雪球帖子混合流，按时间倒排
+- 来源感知跳转按钮（❄️ 雪球 / X.com）
+- 删除独立 /xueqiu 路由，雪球帖子通过 /api/xueqiu/posts 统一读取
+- 重命名 XueqiuSettingsView → UserSettingsView，/user_settings 路由
+- user_settings 页面左右双栏布局（雪球 + Twitter 并排）
+- 删除推文 metrics 显示（replies/retweets/likes）
+- 合并 twitterUserSync.js → twitterSync.js（统一 2 分钟间隔）
+- 雪球首页 feed 同步（getHomeTimeline，关注用户帖子）
+- Twitter 监控用户支持 @handle 自动解析（GraphQL UserByScreenName）
+- UserByScreenName QueryId 支持手动配置 + 自动检测
 
 ### 2026-03-01
 - 添加韩语推文过滤

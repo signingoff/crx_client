@@ -13,6 +13,7 @@ function getQueryId(type) {
   const config = getConfig();
   if (type === 'home') return config.homeTimelineQueryId;
   if (type === 'user') return config.userTweetsQueryId;
+  if (type === 'userByScreenName') return config.userByScreenNameQueryId;
   return config.homeLatestTimelineQueryId;
 }
 
@@ -284,24 +285,68 @@ function parseUserTweets(data) {
 
 /**
  * 通过 screen_name 获取 Twitter 用户 ID
- * 使用 Twitter API v2，仅需 Bearer Token
+ * 使用 X GraphQL UserByScreenName 接口（与 auth_token cookie 兼容）
  * @param {string} screenName - 用户名（不含 @）
  * @returns {Promise<{id: string, name: string, username: string}|null>}
  */
 export async function getUserByScreenName(screenName) {
+  if (!configLoaded) {
+    await loadConfigFromDB();
+    configLoaded = true;
+  }
+
+  const queryId = getQueryId('userByScreenName');
+  if (!queryId) {
+    console.warn('USER_BY_SCREEN_NAME_QUERY_ID 未配置，无法通过用户名查找用户');
+    return null;
+  }
+
   const cookies = await getXCookies();
+  const url = `${X_API_BASE}/${queryId}/UserByScreenName`;
+
+  const variables = {
+    screen_name: screenName,
+    withSafetyModeUserFields: true
+  };
+
+  const features = {
+    hidden_profile_likes_enabled: false,
+    responsive_web_graphql_exclude_directive_enabled: true,
+    verified_phone_label_enabled: false,
+    subscriptions_verification_info_is_identity_verified_enabled: false,
+    subscriptions_verification_info_verified_since_enabled: true,
+    highlights_tweets_tab_ui_enabled: true,
+    creator_subscriptions_tweet_preview_api_enabled: true,
+    responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+    responsive_web_graphql_timeline_navigation_enabled: true
+  };
+
   try {
-    const response = await axios.get(
-      `https://api.twitter.com/2/users/by/username/${encodeURIComponent(screenName)}`,
-      {
-        headers: {
-          'authorization': `Bearer ${cookies.bearer_token}`
-        }
+    const response = await axios.get(url, {
+      headers: {
+        'authorization': `Bearer ${cookies.bearer_token}`,
+        'x-csrf-token': cookies.ct0,
+        'x-twitter-active-user': 'yes',
+        'x-twitter-auth-type': 'OAuth2Session',
+        'cookie': `auth_token=${cookies.auth_token}; ct0=${cookies.ct0}`,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'referer': 'https://x.com/',
+        'origin': 'https://x.com'
+      },
+      params: {
+        variables: JSON.stringify(variables),
+        features: JSON.stringify(features)
       }
-    );
-    const user = response.data?.data;
-    if (!user) return null;
-    return { id: user.id, name: user.name, username: user.username };
+    });
+
+    const result = response.data?.data?.user?.result;
+    if (!result) return null;
+    const legacy = result.legacy || {};
+    return {
+      id: result.rest_id || legacy.id_str,
+      name: legacy.name,
+      username: legacy.screen_name
+    };
   } catch (error) {
     console.error(`查询用户 @${screenName} 失败:`, error.response?.data || error.message);
     return null;

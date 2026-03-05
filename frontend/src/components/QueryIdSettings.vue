@@ -26,6 +26,10 @@
               <label>User Tweets:</label>
               <code>{{ config.userTweetsQueryId || '未设置' }}</code>
             </div>
+            <div class="config-item">
+              <label>UserByScreenName:</label>
+              <code>{{ config.userByScreenNameQueryId || '未设置' }}</code>
+            </div>
             <div class="config-item" v-if="config.updatedAt">
               <label>最后更新:</label>
               <span class="time">{{ formatTime(config.updatedAt) }}</span>
@@ -67,6 +71,14 @@
                 v-model="manualUserTweetsQueryId"
                 type="text"
                 placeholder="输入 Query ID..."
+              />
+            </div>
+            <div class="input-group">
+              <label>UserByScreenName Query ID:</label>
+              <input
+                v-model="manualUserByScreenNameQueryId"
+                type="text"
+                placeholder="输入 Query ID（访问用户主页时从 Network 抓取）..."
               />
             </div>
             <button
@@ -113,9 +125,10 @@ const messageType = ref('info')
 const manualHomeQueryId = ref('')
 const manualFollowingQueryId = ref('')
 const manualUserTweetsQueryId = ref('')
+const manualUserByScreenNameQueryId = ref('')
 
 const canManualUpdate = computed(() => {
-  return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim() || manualUserTweetsQueryId.value.trim()
+  return manualHomeQueryId.value.trim() || manualFollowingQueryId.value.trim() || manualUserTweetsQueryId.value.trim() || manualUserByScreenNameQueryId.value.trim()
 })
 
 onMounted(async () => {
@@ -131,6 +144,7 @@ async function loadConfig() {
       manualHomeQueryId.value = response.data.homeTimelineQueryId || ''
       manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
       manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
+      manualUserByScreenNameQueryId.value = response.data.userByScreenNameQueryId || ''
     }
   } catch (err) {
     showMessage('加载配置失败: ' + err.message, 'error')
@@ -149,6 +163,7 @@ async function autoFetch() {
       manualHomeQueryId.value = response.data.homeTimelineQueryId || ''
       manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
       manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
+      manualUserByScreenNameQueryId.value = response.data.userByScreenNameQueryId || ''
       showMessage('✅ Query ID 自动检测并更新成功！', 'success')
       emit('updated')
     } else {
@@ -171,6 +186,9 @@ async function manualUpdate() {
     }
     if (manualUserTweetsQueryId.value.trim()) {
       await updateQueryId('user', manualUserTweetsQueryId.value.trim())
+    }
+    if (manualUserByScreenNameQueryId.value.trim()) {
+      await updateQueryId('userByScreenName', manualUserByScreenNameQueryId.value.trim())
     }
 
     await loadConfig()

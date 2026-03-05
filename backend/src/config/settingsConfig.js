@@ -5,6 +5,7 @@ const DEFAULT_CONFIG = {
   homeTimelineQueryId: process.env.HOME_TIMELINE_QUERY_ID || '',
   homeLatestTimelineQueryId: process.env.HOME_LATEST_TIMELINE_QUERY_ID || '',
   userTweetsQueryId: process.env.USER_TWEETS_QUERY_ID || '',
+  userByScreenNameQueryId: process.env.USER_BY_SCREEN_NAME_QUERY_ID || '',
   updatedAt: null
 };
 
@@ -17,16 +18,18 @@ let isInitialized = false;
  */
 export async function loadConfigFromDB() {
   try {
-    const [homeQueryId, latestQueryId, userTweetsQueryId] = await Promise.all([
+    const [homeQueryId, latestQueryId, userTweetsQueryId, userByScreenNameQueryId] = await Promise.all([
       getSetting('HOME_TIMELINE_QUERY_ID', process.env.HOME_TIMELINE_QUERY_ID || ''),
       getSetting('HOME_LATEST_TIMELINE_QUERY_ID', process.env.HOME_LATEST_TIMELINE_QUERY_ID || ''),
-      getSetting('USER_TWEETS_QUERY_ID', process.env.USER_TWEETS_QUERY_ID || '')
+      getSetting('USER_TWEETS_QUERY_ID', process.env.USER_TWEETS_QUERY_ID || ''),
+      getSetting('USER_BY_SCREEN_NAME_QUERY_ID', process.env.USER_BY_SCREEN_NAME_QUERY_ID || '')
     ]);
 
     currentConfig = {
       homeTimelineQueryId: homeQueryId || DEFAULT_CONFIG.homeTimelineQueryId,
       homeLatestTimelineQueryId: latestQueryId || DEFAULT_CONFIG.homeLatestTimelineQueryId,
       userTweetsQueryId: userTweetsQueryId || DEFAULT_CONFIG.userTweetsQueryId,
+      userByScreenNameQueryId: userByScreenNameQueryId || DEFAULT_CONFIG.userByScreenNameQueryId,
       updatedAt: new Date().toISOString()
     };
 
@@ -36,6 +39,7 @@ export async function loadConfigFromDB() {
     console.log('   HomeTimeline:', currentConfig.homeTimelineQueryId);
     console.log('   HomeLatestTimeline:', currentConfig.homeLatestTimelineQueryId);
     console.log('   UserTweets:', currentConfig.userTweetsQueryId);
+    console.log('   UserByScreenName:', currentConfig.userByScreenNameQueryId);
 
     return currentConfig;
   } catch (err) {

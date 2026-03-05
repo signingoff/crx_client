@@ -28,6 +28,7 @@ router.get('/config', (req, res) => {
       homeTimelineQueryId: config.homeTimelineQueryId,
       homeLatestTimelineQueryId: config.homeLatestTimelineQueryId,
       userTweetsQueryId: config.userTweetsQueryId,
+      userByScreenNameQueryId: config.userByScreenNameQueryId,
       updatedAt: config.updatedAt
     }
   });
@@ -49,7 +50,7 @@ router.post('/config/query-id', async (req, res) => {
   }
 
   try {
-    const validTypes = ['home', 'following', 'user'];
+    const validTypes = ['home', 'following', 'user', 'userByScreenName'];
     if (!validTypes.includes(type)) {
       throw new Error(`无效的类型: ${type}。必须是: ${validTypes.join(', ')}`);
     }
@@ -58,7 +59,9 @@ router.post('/config/query-id', async (req, res) => {
       ? 'HOME_TIMELINE_QUERY_ID'
       : type === 'user'
         ? 'USER_TWEETS_QUERY_ID'
-        : 'HOME_LATEST_TIMELINE_QUERY_ID';
+        : type === 'userByScreenName'
+          ? 'USER_BY_SCREEN_NAME_QUERY_ID'
+          : 'HOME_LATEST_TIMELINE_QUERY_ID';
 
     await setSetting(key, queryId);
     await loadConfigFromDB();
@@ -71,6 +74,7 @@ router.post('/config/query-id', async (req, res) => {
         homeTimelineQueryId: config.homeTimelineQueryId,
         homeLatestTimelineQueryId: config.homeLatestTimelineQueryId,
         userTweetsQueryId: config.userTweetsQueryId,
+        userByScreenNameQueryId: config.userByScreenNameQueryId,
         updatedAt: config.updatedAt
       }
     });
@@ -108,6 +112,14 @@ router.post('/config/fetch-query-id', async (req, res) => {
       await setSetting('HOME_LATEST_TIMELINE_QUERY_ID', result.homeLatestTimelineQueryId);
       updates.push(`HomeLatestTimeline: ${result.homeLatestTimelineQueryId}`);
     }
+    if (result.userTweetsQueryId) {
+      await setSetting('USER_TWEETS_QUERY_ID', result.userTweetsQueryId);
+      updates.push(`UserTweets: ${result.userTweetsQueryId}`);
+    }
+    if (result.userByScreenNameQueryId) {
+      await setSetting('USER_BY_SCREEN_NAME_QUERY_ID', result.userByScreenNameQueryId);
+      updates.push(`UserByScreenName: ${result.userByScreenNameQueryId}`);
+    }
 
     // 重新加载配置
     await loadConfigFromDB();
@@ -120,6 +132,8 @@ router.post('/config/fetch-query-id', async (req, res) => {
       data: {
         homeTimelineQueryId: config.homeTimelineQueryId,
         homeLatestTimelineQueryId: config.homeLatestTimelineQueryId,
+        userTweetsQueryId: config.userTweetsQueryId,
+        userByScreenNameQueryId: config.userByScreenNameQueryId,
         updatedAt: config.updatedAt,
         source: 'auto-fetch'
       }

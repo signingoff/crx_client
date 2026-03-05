@@ -57,7 +57,9 @@ async function testQueryId(queryId, operation) {
 function extractQueryIdsFromHtml(html) {
   const results = {
     homeTimeline: [],
-    homeLatestTimeline: []
+    homeLatestTimeline: [],
+    userTweets: [],
+    userByScreenName: []
   };
 
   // X.com 的 Query ID 通常是 22 位的 base64-like 字符串
@@ -78,8 +80,20 @@ function extractQueryIdsFromHtml(html) {
     results.homeLatestTimeline.push(match[1]);
   }
 
-  // 模式3: operationName 模式
-  const opRegex = /operationName["']?\s*:\s*["']?(Home(?:Latest)?Timeline)["']?[^}]*queryId["']?\s*:\s*["']?([A-Za-z0-9_-]{22})/gi;
+  // 模式3: UserTweets
+  const userTweetsRegex1 = /UserTweets["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{22})/gi;
+  while ((match = userTweetsRegex1.exec(html)) !== null) {
+    results.userTweets.push(match[1]);
+  }
+
+  // 模式4: UserByScreenName
+  const userByScreenNameRegex1 = /UserByScreenName["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{22})/gi;
+  while ((match = userByScreenNameRegex1.exec(html)) !== null) {
+    results.userByScreenName.push(match[1]);
+  }
+
+  // 模式5: operationName 模式
+  const opRegex = /operationName["']?\s*:\s*["']?(Home(?:Latest)?Timeline|UserTweets|UserByScreenName)["']?[^}]*queryId["']?\s*:\s*["']?([A-Za-z0-9_-]{22})/gi;
   while ((match = opRegex.exec(html)) !== null) {
     const opName = match[1];
     const queryId = match[2];
@@ -87,12 +101,18 @@ function extractQueryIdsFromHtml(html) {
       results.homeTimeline.push(queryId);
     } else if (opName === 'HomeLatestTimeline') {
       results.homeLatestTimeline.push(queryId);
+    } else if (opName === 'UserTweets') {
+      results.userTweets.push(queryId);
+    } else if (opName === 'UserByScreenName') {
+      results.userByScreenName.push(queryId);
     }
   }
 
   // 去重
   results.homeTimeline = [...new Set(results.homeTimeline)];
   results.homeLatestTimeline = [...new Set(results.homeLatestTimeline)];
+  results.userTweets = [...new Set(results.userTweets)];
+  results.userByScreenName = [...new Set(results.userByScreenName)];
 
   return results;
 }
@@ -140,7 +160,9 @@ function extractJsUrls(html) {
 function extractQueryIdsFromJs(jsContent) {
   const results = {
     homeTimeline: [],
-    homeLatestTimeline: []
+    homeLatestTimeline: [],
+    userTweets: [],
+    userByScreenName: []
   };
 
   // 模式1: 查找 HomeTimeline 相关的 Query ID
@@ -168,9 +190,33 @@ function extractQueryIdsFromJs(jsContent) {
     results.homeLatestTimeline.push(match[1]);
   }
 
+  // 模式3: 查找 UserTweets 相关的 Query ID
+  const userTweetsRegex = /queryId[^}]*["']([A-Za-z0-9_-]{22})["'][^}]*operationName[^}]*["']UserTweets["']/gi;
+  while ((match = userTweetsRegex.exec(jsContent)) !== null) {
+    results.userTweets.push(match[1]);
+  }
+
+  const userTweetsRegex2 = /operationName[^}]*["']UserTweets["'][^}]*queryId[^}]*["']([A-Za-z0-9_-]{22})["']/gi;
+  while ((match = userTweetsRegex2.exec(jsContent)) !== null) {
+    results.userTweets.push(match[1]);
+  }
+
+  // 模式4: 查找 UserByScreenName 相关的 Query ID
+  const userByScreenNameRegex = /queryId[^}]*["']([A-Za-z0-9_-]{22})["'][^}]*operationName[^}]*["']UserByScreenName["']/gi;
+  while ((match = userByScreenNameRegex.exec(jsContent)) !== null) {
+    results.userByScreenName.push(match[1]);
+  }
+
+  const userByScreenNameRegex2 = /operationName[^}]*["']UserByScreenName["'][^}]*queryId[^}]*["']([A-Za-z0-9_-]{22})["']/gi;
+  while ((match = userByScreenNameRegex2.exec(jsContent)) !== null) {
+    results.userByScreenName.push(match[1]);
+  }
+
   // 去重
   results.homeTimeline = [...new Set(results.homeTimeline)];
   results.homeLatestTimeline = [...new Set(results.homeLatestTimeline)];
+  results.userTweets = [...new Set(results.userTweets)];
+  results.userByScreenName = [...new Set(results.userByScreenName)];
 
   return results;
 }
@@ -183,7 +229,9 @@ async function extractFromJsFiles(html) {
 
   const allResults = {
     homeTimeline: [],
-    homeLatestTimeline: []
+    homeLatestTimeline: [],
+    userTweets: [],
+    userByScreenName: []
   };
 
   for (const url of jsUrls.slice(0, 3)) {
@@ -193,6 +241,8 @@ async function extractFromJsFiles(html) {
         const results = extractQueryIdsFromJs(jsContent);
         allResults.homeTimeline.push(...results.homeTimeline);
         allResults.homeLatestTimeline.push(...results.homeLatestTimeline);
+        allResults.userTweets.push(...results.userTweets);
+        allResults.userByScreenName.push(...results.userByScreenName);
       }
     } catch (err) {
       // 忽略 JS 加载错误
@@ -202,6 +252,8 @@ async function extractFromJsFiles(html) {
   // 去重
   allResults.homeTimeline = [...new Set(allResults.homeTimeline)];
   allResults.homeLatestTimeline = [...new Set(allResults.homeLatestTimeline)];
+  allResults.userTweets = [...new Set(allResults.userTweets)];
+  allResults.userByScreenName = [...new Set(allResults.userByScreenName)];
 
   return allResults;
 }
@@ -299,7 +351,9 @@ async function findWorkingQueryId(operation, knownIds) {
 function mergeCandidates(c1, c2) {
   return {
     homeTimeline: [...new Set([...c1.homeTimeline, ...c2.homeTimeline])],
-    homeLatestTimeline: [...new Set([...c1.homeLatestTimeline, ...c2.homeLatestTimeline])]
+    homeLatestTimeline: [...new Set([...c1.homeLatestTimeline, ...c2.homeLatestTimeline])],
+    userTweets: [...new Set([...(c1.userTweets || []), ...(c2.userTweets || [])])],
+    userByScreenName: [...new Set([...(c1.userByScreenName || []), ...(c2.userByScreenName || [])])]
   };
 }
 
@@ -333,7 +387,9 @@ export async function fetchQueryIdsFromX() {
 
     const results = {
       homeTimeline: null,
-      homeLatestTimeline: null
+      homeLatestTimeline: null,
+      userTweets: null,
+      userByScreenName: null
     };
 
     // 步骤3: 测试提取的候选 ID
@@ -343,9 +399,15 @@ export async function fetchQueryIdsFromX() {
     if (candidates.homeLatestTimeline.length > 0) {
       results.homeLatestTimeline = await findWorkingQueryId('HomeLatestTimeline', candidates.homeLatestTimeline);
     }
+    if (candidates.userTweets.length > 0) {
+      results.userTweets = await findWorkingQueryId('UserTweets', candidates.userTweets);
+    }
+    if (candidates.userByScreenName.length > 0) {
+      results.userByScreenName = await findWorkingQueryId('UserByScreenName', candidates.userByScreenName);
+    }
 
     // 返回结果
-    if (!results.homeTimeline && !results.homeLatestTimeline) {
+    if (!results.homeTimeline && !results.homeLatestTimeline && !results.userTweets && !results.userByScreenName) {
       throw new Error('无法找到有效的 Query ID。请检查 Cookie 是否过期，或手动输入 Query ID。');
     }
 
@@ -353,6 +415,8 @@ export async function fetchQueryIdsFromX() {
       success: true,
       homeTimelineQueryId: results.homeTimeline,
       homeLatestTimelineQueryId: results.homeLatestTimeline,
+      userTweetsQueryId: results.userTweets,
+      userByScreenNameQueryId: results.userByScreenName,
       source: 'auto-fetch',
       timestamp: new Date().toISOString()
     };
