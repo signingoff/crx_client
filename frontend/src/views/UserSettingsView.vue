@@ -76,6 +76,69 @@
         </button>
       </div>
 
+      <!-- Twitter 用户监控 -->
+      <div class="add-section">
+        <h3>🐦 Twitter 用户监控</h3>
+        <div class="add-form">
+          <input
+            v-model="newTwitterUserId"
+            type="text"
+            placeholder="输入 Twitter 用户的数字 ID（如 44196397）..."
+            @keyup.enter="addTwitterUser"
+            class="user-input"
+          />
+          <button class="btn-add" @click="addTwitterUser" :disabled="!newTwitterUserId.trim()">
+            ➕ 添加
+          </button>
+        </div>
+        <p class="help-text">
+          💡 在 X.com 上打开用户主页，通过第三方工具（如 <a href="https://tweeterid.com" target="_blank">tweeterid.com</a>）查询用户数字 ID
+        </p>
+      </div>
+
+      <div class="table-section">
+        <h3>Twitter 监控用户列表 ({{ twitterUserList.length }} 个)</h3>
+        <div class="table-wrapper">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>用户ID</th>
+                <th>用户名</th>
+                <th>Bio</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in twitterUserList" :key="user.user_id">
+                <td class="user-id">{{ user.user_id }}</td>
+                <td class="user-name">{{ user.screen_name || '-' }}</td>
+                <td class="user-desc">{{ user.description || '-' }}</td>
+                <td class="actions">
+                  <button class="btn-remove" @click="removeTwitterUser(user.user_id)">
+                    🗑️ 删除
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="twitterUserList.length === 0">
+                <td colspan="4" class="empty">暂无监控用户</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sync-section">
+        <div class="sync-info">
+          <span class="status" :class="twitterSyncing ? 'syncing' : 'idle'">
+            {{ twitterSyncing ? '🔄 同步中...' : '✓ 等待同步' }}
+          </span>
+          <span class="interval">每 5 分钟自动同步</span>
+        </div>
+        <button class="btn-sync" @click="triggerTwitterUserSync" :disabled="twitterSyncing">
+          🔄 立即同步
+        </button>
+      </div>
+
       <div v-if="message" :class="['message', messageType]">
         {{ message }}
       </div>
@@ -95,6 +158,10 @@ const message = ref('')
 const messageType = ref('info')
 const syncing = ref(false)
 
+const twitterUserList = ref([])
+const newTwitterUserId = ref('')
+const twitterSyncing = ref(false)
+
 // 仅允许数字
 const isValidId = computed(() => {
   const id = newUserId.value.trim()
@@ -104,6 +171,7 @@ const isValidId = computed(() => {
 
 onMounted(async () => {
   await loadUsers()
+  await loadTwitterUsers()
 })
 
 async function loadUsers() {
@@ -177,6 +245,57 @@ async function triggerSync() {
     showMessage('❌ 同步失败: ' + err.message, 'error')
   } finally {
     syncing.value = false
+  }
+}
+
+async function loadTwitterUsers() {
+  try {
+    const res = await axios.get(`${API_BASE}/twitter/users`)
+    if (res.data.success) {
+      twitterUserList.value = res.data.data || []
+    }
+  } catch (err) {
+    console.log('加载 Twitter 用户失败:', err.message)
+  }
+}
+
+async function addTwitterUser() {
+  const id = newTwitterUserId.value.trim()
+  if (!id) return
+  if (twitterUserList.value.find(u => u.user_id === id)) {
+    showMessage('⚠️ 用户已存在', 'error')
+    return
+  }
+  try {
+    await axios.post(`${API_BASE}/twitter/users`, { user_id: id })
+    twitterUserList.value.push({ user_id: id, screen_name: '', description: '' })
+    showMessage('✅ 添加成功，后台正在同步...', 'success')
+    newTwitterUserId.value = ''
+  } catch (err) {
+    showMessage('❌ 添加失败: ' + err.message, 'error')
+  }
+}
+
+async function removeTwitterUser(userId) {
+  try {
+    await axios.delete(`${API_BASE}/twitter/users/${userId}`)
+    twitterUserList.value = twitterUserList.value.filter(u => u.user_id !== userId)
+    showMessage('✅ 已删除', 'success')
+  } catch (err) {
+    showMessage('❌ 删除失败: ' + err.message, 'error')
+  }
+}
+
+async function triggerTwitterUserSync() {
+  twitterSyncing.value = true
+  try {
+    await axios.post(`${API_BASE}/twitter/users/sync`)
+    showMessage('✅ 同步完成', 'success')
+    await loadTwitterUsers()
+  } catch (err) {
+    showMessage('❌ 同步失败: ' + err.message, 'error')
+  } finally {
+    twitterSyncing.value = false
   }
 }
 
@@ -335,6 +454,15 @@ h3 {
 
 .user-table .post-count {
   color: #536471;
+}
+
+.user-table .user-desc {
+  color: #536471;
+  font-size: 13px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-table .actions {
