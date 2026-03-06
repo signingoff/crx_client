@@ -28,6 +28,17 @@
         :error="error"
         @select-tweet="openTweet"
       />
+
+      <!-- 加载更多指示器 -->
+      <div v-if="loadingMore" class="loading-more">
+        <span class="spinner"></span>
+        <span>加载更多...</span>
+      </div>
+
+      <!-- 没有更多数据 -->
+      <div v-else-if="!hasMoreData && tweets.length > 0" class="no-more">
+        已加载全部内容
+      </div>
     </div>
 
     <!-- 设置面板 -->
@@ -48,10 +59,17 @@ import QueryIdSettings from '../components/QueryIdSettings.vue'
 const tweets = ref([])
 const pendingTweets = ref([])
 const loading = ref(false)
+const loadingMore = ref(false)
 const error = ref('')
 const lastUpdated = ref('')
 const showSettings = ref(false)
 const requireAuth = inject('requireAuth')
+
+// 分页相关状态
+const currentPage = ref(1)
+const hasMoreData = ref(true)
+const pageSize = 30
+
 let refreshInterval = null
 
 function normalizeTwitterPost(post) {
@@ -124,18 +142,19 @@ async function loadTweets() {
     loading.value = true
   }
   error.value = ''
+  currentPage.value = 1
 
   try {
     const [twitterRes, xueqiuRes] = await Promise.all([
-      axios.get('/api/twitter/posts', { params: { page: 1, limit: 30 } }).catch(() => null),
-      axios.get('/api/xueqiu/posts', { params: { page: 1, limit: 30 } }).catch(() => null)
+      axios.get('/api/twitter/posts', { params: { page: 1, limit: pageSize } }).catch(() => null),
+      axios.get('/api/xueqiu/posts', { params: { page: 1, limit: pageSize } }).catch(() => null)
     ])
 
     const twitterPosts = (twitterRes?.data?.data?.posts || []).map(normalizeTwitterPost)
     const xueqiuPosts = (xueqiuRes?.data?.data?.posts || []).map(normalizeXueqiuPost)
     const allNew = [...twitterPosts, ...xueqiuPosts]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    console.log(twitterPosts)
+
     const existingIds = new Set(tweets.value.map(t => t.id))
     const newItems = allNew.filter(t => !existingIds.has(t.id))
 
@@ -149,10 +168,67 @@ async function loadTweets() {
         pendingTweets.value = [...trulyNew, ...pendingTweets.value]
       }
     }
+
+    // 检查是否还有更多数据
+    const twitterCount = twitterRes?.data?.data?.posts?.length || 0
+    const xueqiuCount = xueqiuRes?.data?.data?.posts?.length || 0
+    hasMoreData.value = twitterCount >= pageSize || xueqiuCount >= pageSize
+
   } catch (err) {
     error.value = err.message || '网络错误，请检查后端服务'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadMoreTweets() {
+  if (loadingMore.value || !hasMoreData.value) return
+
+  loadingMore.value = true
+  currentPage.value++
+
+  try {
+    const [twitterRes, xueqiuRes] = await Promise.all([
+      axios.get('/api/twitter/posts', { params: { page: currentPage.value, limit: pageSize } }).catch(() => null),
+      axios.get('/api/xueqiu/posts', { params: { page: currentPage.value, limit: pageSize } }).catch(() => null)
+    ])
+
+    const twitterPosts = (twitterRes?.data?.data?.posts || []).map(normalizeTwitterPost)
+    const xueqiuPosts = (xueqiuRes?.data?.data?.posts || []).map(normalizeXueqiuPost)
+    const newPosts = [...twitterPosts, ...xueqiuPosts]
+
+    // 检查是否还有更多数据
+    const twitterCount = twitterRes?.data?.data?.posts?.length || 0
+    const xueqiuCount = xueqiuRes?.data?.data?.posts?.length || 0
+    hasMoreData.value = twitterCount >= pageSize || xueqiuCount >= pageSize
+
+    if (newPosts.length > 0) {
+      // 合并新旧数据，去重，按时间排序
+      const combined = [...tweets.value, ...newPosts]
+      const unique = combined.filter((item, index, self) =>
+        index === self.findIndex(t => t.id === item.id)
+      )
+      tweets.value = unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    } else {
+      hasMoreData.value = false
+    }
+  } catch (err) {
+    console.error('加载更多失败:', err)
+    hasMoreData.value = false
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+// 滚动监听处理
+function handleScroll() {
+  const scrollHeight = document.documentElement.scrollHeight
+  const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+  const clientHeight = document.documentElement.clientHeight
+
+  // 距离底部 200px 时触发加载
+  if (scrollTop + clientHeight >= scrollHeight - 200) {
+    loadMoreTweets()
   }
 }
 
@@ -178,12 +254,16 @@ function updateLastUpdatedTime() {
 onMounted(() => {
   loadTweets()
   refreshInterval = setInterval(loadTweets, 8000)
+  // 添加滚动监听
+  window.addEventListener('scroll', handleScroll)
 })
 
 onUnmounted(() => {
   if (refreshInterval) {
     clearInterval(refreshInterval)
   }
+  // 移除滚动监听
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -286,4 +366,37 @@ h1 {
   background: #e1e8ed;
 }
 
+/* 加载更多样式 */
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: #536471;
+  font-size: 14px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e1e8ed;
+  border-top-color: #1d9bf0;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px;
+  color: #536471;
+  font-size: 14px;
+}
 </style>

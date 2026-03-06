@@ -378,6 +378,68 @@ async function loadPendingTweets() {
 }
 ```
 
+**滚动分页加载更多**
+```javascript
+// 分页相关状态
+const currentPage = ref(1)
+const hasMoreData = ref(true)
+const pageSize = 30
+
+// 滚动监听处理
+function handleScroll() {
+  const scrollHeight = document.documentElement.scrollHeight
+  const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+  const clientHeight = document.documentElement.clientHeight
+
+  // 距离底部 200px 时触发加载
+  if (scrollTop + clientHeight >= scrollHeight - 200) {
+    loadMoreTweets()
+  }
+}
+
+// 加载更多历史推文
+async function loadMoreTweets() {
+  if (loadingMore.value || !hasMoreData.value) return
+
+  loadingMore.value = true
+  currentPage.value++
+
+  try {
+    const [twitterRes, xueqiuRes] = await Promise.all([
+      axios.get('/api/twitter/posts', { params: { page: currentPage.value, limit: pageSize } }),
+      axios.get('/api/xueqiu/posts', { params: { page: currentPage.value, limit: pageSize } })
+    ])
+
+    const newPosts = [...twitterPosts, ...xueqiuPosts]
+
+    // 检查是否还有更多数据
+    hasMoreData.value = twitterCount >= pageSize || xueqiuCount >= pageSize
+
+    if (newPosts.length > 0) {
+      // 合并新旧数据，去重，按时间排序
+      const combined = [...tweets.value, ...newPosts]
+      const unique = combined.filter((item, index, self) =>
+        index === self.findIndex(t => t.id === item.id)
+      )
+      tweets.value = unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    } else {
+      hasMoreData.value = false
+    }
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+// 生命周期中添加滚动监听
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
+```
+
 ##### 生命周期钩子
 
 ```javascript
