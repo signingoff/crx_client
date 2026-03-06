@@ -10,9 +10,9 @@ import javax.inject.Singleton
 class TweetRepository @Inject constructor(
     private val apiService: ApiService
 ) {
-    suspend fun getTwitterPosts(): Result<List<Tweet>> {
+    suspend fun getTwitterPosts(page: Int = 1, limit: Int = 20): Result<List<Tweet>> {
         return try {
-            val response = apiService.getTwitterPosts()
+            val response = apiService.getTwitterPosts(page, limit)
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body?.success == true) {
@@ -28,9 +28,9 @@ class TweetRepository @Inject constructor(
         }
     }
 
-    suspend fun getXueqiuPosts(): Result<List<Tweet>> {
+    suspend fun getXueqiuPosts(page: Int = 1, limit: Int = 20): Result<List<Tweet>> {
         return try {
-            val response = apiService.getXueqiuPosts()
+            val response = apiService.getXueqiuPosts(page, limit)
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body?.success == true) {
