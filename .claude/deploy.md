@@ -10,7 +10,7 @@
 
 ## 1. 数据库：Supabase 配置
 
-Supabase 为项目提供云端 PostgreSQL 数据库支持。
+Supabase 为项目提供云端 PostgreSQL 数据库支持。若您需要从本地 SQLite 迁移到云端，请遵循以下步骤。
 
 ### 初始化步骤
 1. **创建项目**: 在 [Supabase](https://supabase.com) 创建新项目（建议选择新加坡节点）。

@@ -75,15 +75,6 @@ export async function saveTwitterPost(post)
 // 保存雪球帖子
 export async function saveXueqiuPost(post)
 
-// 检查推文是否已读
-export async function isPostRead(tweetId)
-
-// 标记已读/未读
-export async function markPostAsRead(tweetId, isRead = true)
-
-// 批量查询已读状态
-export async function getReadStatusBatch(tweetIds)
-
 // 获取监控用户列表
 export async function getTwitterUsers()
 export async function getXueqiuUsers()
@@ -107,9 +98,7 @@ export async function getXCookies()
 ```javascript
 import {
   getAllTwitterPosts,
-  saveTwitterPost,
-  isPostRead,
-  markPostAsRead
+  saveTwitterPost
 } from '../db/supabase.js';
 
 // 获取推文列表
@@ -123,10 +112,4 @@ await saveTwitterPost({
   created_at: new Date().toISOString(),
   author: { name: 'User', username: 'handle' }
 });
-
-// 检查已读状态
-const isRead = await isPostRead('123456');
-
-// 标记已读
-await markPostAsRead('123456', true);
 ```

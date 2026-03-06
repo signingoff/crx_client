@@ -11,19 +11,6 @@
 let refreshInterval = setInterval(loadTweets, 8000)
 ```
 
-### 已读同步
-
-每 5 秒查询服务器已读状态，更新本地显示。
-
-```javascript
-// 解决多客户端/多标签页同步问题
-async function syncReadStatus() {
-  const tweetIds = tweets.value.map(t => t.id)
-  const statusMap = await fetchReadStatus(tweetIds)
-  // 更新本地状态
-}
-```
-
 ## Props
 
 | 属性 | 类型 | 默认值 | 说明 |

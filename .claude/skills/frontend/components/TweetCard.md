@@ -47,7 +47,6 @@ interface Media {
 | 事件 | 参数 | 说明 |
 |------|------|------|
 | `select-tweet` | `tweetId: string` | 点击卡片时触发 |
-| `update:isRead` | `isRead: boolean` | 已读状态变更时触发 |
 
 ## 样式规范
 
