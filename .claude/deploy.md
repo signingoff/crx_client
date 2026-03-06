@@ -4,9 +4,14 @@
 
 ## 自动化脚本 (Scripts)
 - **部署** / **deploy**:
-  1. `git add . && git commit -m "自动部署" && git push origin main` (推送到 GitHub)。
+  1. `git add . && git commit -m "<根据实际改动生成的详细描述>" && git push origin main` (推送到 GitHub)。
   2. `cd frontend && vercel --prod` (部署到 Vercel)。
   3. `npx kill-port 3000 5173 && cd backend && npm run dev > backend.log 2>&1 & cd ../frontend && npm run dev` (本地重启)。
+
+- **commit**:
+`git add . && git commit -m "<根据实际改动生成的详细描述>"`
+- **push**:
+`git push origin main` (推送到 GitHub)。
 
 ## 1. 数据库：Supabase 配置
 
@@ -26,10 +31,10 @@ Supabase 为项目提供云端 PostgreSQL 数据库支持。若您需要从本�
 
 ### 部署流程
 1. **关联 GitHub**: 登录 Render 并关联您的代码仓库。
-2. **推送代码**: 执行以下命令将代码推送至主分支，Render 将自动触发构建与部署：
+2. **推送代码**: 执行以下命令将代码推送至主分支，Render 将自动触发构建与部署（请确保 Commit Message 描述了具体改动）：
    ```bash
    git add .
-   git commit -m "部署描述"
+   git commit -m "feat: 补充具体的改动描述"
    git push origin main
    ```
 3. **配置环境变量**: 在 Render Dashboard 为 Web Service 配置以下变量：

@@ -9,7 +9,9 @@ dist-electron/
 
 # Environment files - 包含敏感信息
 .env
+.env.*
 backend/.env
+frontend/.env.production
 .env.local
 .env.*.local
 
