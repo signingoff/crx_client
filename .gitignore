@@ -49,3 +49,7 @@ backend/data/
 
 # Git worktrees
 .worktrees/
+
+# AI assistants
+.agents/
+.kiro/
