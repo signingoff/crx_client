@@ -64,13 +64,24 @@ npm run dev
 
 ```
 xueqiu_crx/
-├── backend/          # Node.js 后端服务
-│   ├── src/config/   # 配置文件
-│   ├── src/routes/   # API 路由
-│   └── src/services/ # X API 服务
-├── frontend/         # Vue 3 前端
-│   └── src/components/
-└── CLAUDE.md         # 开发文档
+├── backend/              # Node.js 后端服务
+│   ├── src/
+│   │   ├── config/       # 配置文件（Query ID 等）
+│   │   ├── routes/       # API 路由（twitter, xueqiu, auth）
+│   │   ├── services/     # 同步服务（Twitter, 雪球抓取）
+│   │   └── db/           # 数据库操作（Supabase/SQLite）
+│   └── .env              # 环境变量配置
+├── frontend/             # Vue 3 前端
+│   ├── src/
+│   │   ├── api/          # API 请求封装
+│   │   ├── components/   # UI 组件（TweetCard, TweetList）
+│   │   ├── views/        # 页面视图（Home, UserSettings）
+│   │   └── router/       # 路由配置
+│   └── .env              # 环境变量配置
+├── android-native/       # Android 原生应用（Kotlin + Jetpack Compose）
+├── .claude/skills/       # Claude Code Skill 文档
+├── docs/                 # 设计文档和架构说明
+└── CLAUDE.md             # 开发文档
 ```
 
 ## 注意事项
