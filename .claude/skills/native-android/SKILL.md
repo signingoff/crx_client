@@ -107,7 +107,6 @@ android-native/
 - Token 存储在 SharedPreferences
 - 启动时检查 token 有效性
 - 首次使用显示设置密码界面
-- 支持退出登录
 
 **API 接口**:
 ```kotlin
