@@ -140,7 +140,41 @@ xueqiu_crx/
 - **数据库**：首次加载时 `is_read=0`，三连击后 `is_read=1`
 - **自动同步**：前端每5秒查询服务器已读状态，更新本地显示（解决多客户端同步问题）
 
-### 4. 媒体处理策略
+### 4. 用户认证与登录
+
+**需求**: Web 系统需要支持用户登录功能，以保护敏感配置和数据。
+
+**认证方式**: JWT (JSON Web Token)
+
+**登录流程**:
+1. 用户访问系统时，前端检查本地存储的 JWT token
+2. 如未登录，重定向到登录页面
+3. 后端验证用户名/密码，返回 JWT token
+4. 前端将 token 存储在 localStorage，后续请求携带在 Authorization header 中
+
+**API 端点**:
+- `POST /api/auth/login` - 登录，返回 JWT
+- `POST /api/auth/logout` - 登出（客户端清除 token）
+- `GET /api/auth/me` - 获取当前用户信息
+
+**受保护的路由**:
+- `/user_settings` - 用户管理
+- `/queryid-config` - Query ID 配置
+- 所有 POST/DELETE 操作（修改类 API）
+
+**Token 配置**:
+```env
+# backend/.env
+JWT_SECRET=your-secret-key-here
+JWT_EXPIRES_IN=7d  # token 有效期
+```
+
+**前端实现**:
+- 登录页面: `LoginView.vue`
+- 路由守卫: 未登录用户重定向到登录页
+- Axios 拦截器: 自动附加 Authorization header
+
+### 5. 媒体处理策略
 
 | 媒体类型 | 处理方式 | 原因 |
 |---------|---------|------|
