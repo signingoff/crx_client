@@ -33,6 +33,8 @@ android-native/
 │   │   │   ├── Tweet.kt               # 推文数据模型
 │   │   │   ├── Author.kt              # 作者数据模型
 │   │   │   ├── Media.kt               # 媒体数据模型
+│   │   │   ├── MonitorUser.kt         # 监控用户数据模型
+│   │   │   ├── QueryIdConfig.kt       # Query ID 配置数据模型
 │   │   │   └── ApiResponse.kt         # API 响应包装类
 │   │   └── repository/
 │   │       ├── AuthRepository.kt      # 认证仓库
@@ -126,6 +128,54 @@ interface AuthApiService {
 ```
 
 **Auth Interceptor**: 自动为请求附加 `Authorization: Bearer {token}` Header
+
+### 6. 用户管理
+
+**文件**: `UserManagementViewModel.kt`, `SettingsScreen.kt`
+
+- Twitter 监控用户管理（查看、添加、删除）
+- 雪球监控用户管理（查看、添加、删除）
+- 支持输入数字 ID 或 @用户名（Twitter 会自动解析）
+
+**API 接口**:
+```kotlin
+// Twitter 用户管理
+@GET("twitter/users")
+suspend fun getTwitterUsers(): Response<ApiResponse<List<MonitorUser>>>
+
+@POST("twitter/users")
+suspend fun addTwitterUser(@Body user: MonitorUser): Response<ApiResponse<Unit>>
+
+@DELETE("twitter/users/{id}")
+suspend fun deleteTwitterUser(@Path("id") id: String): Response<ApiResponse<Unit>>
+
+// 雪球用户管理
+@GET("xueqiu/users")
+suspend fun getXueqiuUsers(): Response<ApiResponse<List<MonitorUser>>>
+
+@POST("xueqiu/users")
+suspend fun addXueqiuUser(@Body user: MonitorUser): Response<ApiResponse<Unit>>
+
+@DELETE("xueqiu/users/{id}")
+suspend fun deleteXueqiuUser(@Path("id") id: String): Response<ApiResponse<Unit>>
+```
+
+### 7. Query ID 配置
+
+**文件**: `UserManagementViewModel.kt`, `SettingsScreen.kt`
+
+- Home Latest Timeline Query ID
+- User Tweets Query ID
+- User By Screen Name Query ID
+
+**API 接口**:
+```kotlin
+@GET("tweets/queryid-config")
+suspend fun getQueryIdConfig(): Response<ApiResponse<QueryIdConfig>>
+
+@POST("tweets/queryid-config")
+suspend fun updateQueryIdConfig(@Body config: QueryIdUpdateRequest): Response<ApiResponse<QueryIdConfig>>
+```
 
 ## 数据模型
 
