@@ -1,10 +1,11 @@
 import { getSetting } from '../db/index.js';
+import { TWITTER_AUTH_KEYS, DEFAULT_BEARER_TOKEN, QUERY_ID_KEYS, QUERY_TYPES } from './constants.js';
 
 // 默认配置
 const DEFAULT_CONFIG = {
-  homeLatestTimelineQueryId: process.env.HOME_LATEST_TIMELINE_QUERY_ID || '',
-  userTweetsQueryId: process.env.USER_TWEETS_QUERY_ID || '',
-  userByScreenNameQueryId: process.env.USER_BY_SCREEN_NAME_QUERY_ID || '',
+  homeLatestTimelineQueryId: process.env[QUERY_ID_KEYS[QUERY_TYPES.FOLLOWING]] || '',
+  userTweetsQueryId: process.env[QUERY_ID_KEYS[QUERY_TYPES.USER]] || '',
+  userByScreenNameQueryId: process.env[QUERY_ID_KEYS[QUERY_TYPES.USER_BY_SCREEN_NAME]] || '',
   updatedAt: null
 };
 
@@ -18,9 +19,9 @@ let isInitialized = false;
 export async function loadConfigFromDB() {
   try {
     const [latestQueryId, userTweetsQueryId, userByScreenNameQueryId] = await Promise.all([
-      getSetting('HOME_LATEST_TIMELINE_QUERY_ID', process.env.HOME_LATEST_TIMELINE_QUERY_ID || ''),
-      getSetting('USER_TWEETS_QUERY_ID', process.env.USER_TWEETS_QUERY_ID || ''),
-      getSetting('USER_BY_SCREEN_NAME_QUERY_ID', process.env.USER_BY_SCREEN_NAME_QUERY_ID || '')
+      getSetting(QUERY_ID_KEYS[QUERY_TYPES.FOLLOWING], process.env[QUERY_ID_KEYS[QUERY_TYPES.FOLLOWING]] || ''),
+      getSetting(QUERY_ID_KEYS[QUERY_TYPES.USER], process.env[QUERY_ID_KEYS[QUERY_TYPES.USER]] || ''),
+      getSetting(QUERY_ID_KEYS[QUERY_TYPES.USER_BY_SCREEN_NAME], process.env[QUERY_ID_KEYS[QUERY_TYPES.USER_BY_SCREEN_NAME]] || '')
     ]);
 
     currentConfig = {
@@ -63,9 +64,9 @@ export function getConfig() {
 export async function getXCookies() {
   try {
     const [authToken, ct0, bearerToken] = await Promise.all([
-      getSetting('X_AUTH_TOKEN', process.env.X_AUTH_TOKEN || ''),
-      getSetting('X_CT0', process.env.X_CT0 || ''),
-      getSetting('X_BEARER_TOKEN', process.env.X_BEARER_TOKEN || 'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA')
+      getSetting(TWITTER_AUTH_KEYS.X_AUTH_TOKEN, process.env[TWITTER_AUTH_KEYS.X_AUTH_TOKEN] || ''),
+      getSetting(TWITTER_AUTH_KEYS.X_CT0, process.env[TWITTER_AUTH_KEYS.X_CT0] || ''),
+      getSetting(TWITTER_AUTH_KEYS.X_BEARER_TOKEN, process.env[TWITTER_AUTH_KEYS.X_BEARER_TOKEN] || DEFAULT_BEARER_TOKEN)
     ]);
 
     return {
@@ -76,9 +77,9 @@ export async function getXCookies() {
   } catch (err) {
     console.error('从数据库加载 Cookies 失败，使用环境变量:', err.message);
     return {
-      auth_token: process.env.X_AUTH_TOKEN || '',
-      ct0: process.env.X_CT0 || '',
-      bearer_token: process.env.X_BEARER_TOKEN || 'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+      auth_token: process.env[TWITTER_AUTH_KEYS.X_AUTH_TOKEN] || '',
+      ct0: process.env[TWITTER_AUTH_KEYS.X_CT0] || '',
+      bearer_token: process.env[TWITTER_AUTH_KEYS.X_BEARER_TOKEN] || DEFAULT_BEARER_TOKEN
     };
   }
 }

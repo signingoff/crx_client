@@ -11,7 +11,8 @@ const routes = [
   {
     path: '/user_settings',
     name: 'UserSettings',
-    component: UserSettingsView
+    component: UserSettingsView,
+    meta: { requiresAuth: true }
   }
 ]
 

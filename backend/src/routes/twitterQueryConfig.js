@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { setSetting } from '../db/index.js';
 import { getConfig, loadConfigFromDB } from '../config/settingsConfig.js';
-import { fetchQueryIdsFromX } from '../services/queryIdFetcher.js';
+import { VALID_QUERY_TYPES, QUERY_ID_KEYS } from '../config/constants.js';
 
 const router = Router();
 
 /**
- * GET /api/tweets/config
+ * GET /api/tweets/queryid-config
  * 获取当前 Query ID 配置
  */
-router.get('/config', (req, res) => {
+router.get('/queryid-config', (req, res) => {
   const config = getConfig();
   res.json({
     success: true,
@@ -23,11 +23,11 @@ router.get('/config', (req, res) => {
 });
 
 /**
- * POST /api/tweets/config/query-id
+ * POST /api/tweets/queryid-config
  * 更新 Query ID
  * Body: { type: 'following' | 'user' | 'userByScreenName', queryId: string }
  */
-router.post('/config/query-id', async (req, res) => {
+router.post('/queryid-config', async (req, res) => {
   const { type, queryId } = req.body;
 
   if (!type || !queryId) {
@@ -38,16 +38,11 @@ router.post('/config/query-id', async (req, res) => {
   }
 
   try {
-    const validTypes = ['following', 'user', 'userByScreenName'];
-    if (!validTypes.includes(type)) {
-      throw new Error(`无效的类型: ${type}。必须是: ${validTypes.join(', ')}`);
+    if (!VALID_QUERY_TYPES.includes(type)) {
+      throw new Error(`无效的类型: ${type}。必须是: ${VALID_QUERY_TYPES.join(', ')}`);
     }
 
-    const key = type === 'user'
-      ? 'USER_TWEETS_QUERY_ID'
-      : type === 'userByScreenName'
-        ? 'USER_BY_SCREEN_NAME_QUERY_ID'
-        : 'HOME_LATEST_TIMELINE_QUERY_ID';
+    const key = QUERY_ID_KEYS[type];
 
     await setSetting(key, queryId);
     await loadConfigFromDB();
@@ -65,62 +60,6 @@ router.post('/config/query-id', async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * POST /api/tweets/config/fetch-query-id
- * 自动从 X.com 获取并更新 Query ID
- */
-router.post('/config/fetch-query-id', async (req, res) => {
-  try {
-    console.log('🔄 Auto-fetching Query IDs from X.com...');
-    const result = await fetchQueryIdsFromX();
-
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: result.error
-      });
-    }
-
-    // 更新配置
-    const updates = [];
-    if (result.homeLatestTimelineQueryId) {
-      await setSetting('HOME_LATEST_TIMELINE_QUERY_ID', result.homeLatestTimelineQueryId);
-      updates.push(`HomeLatestTimeline: ${result.homeLatestTimelineQueryId}`);
-    }
-    if (result.userTweetsQueryId) {
-      await setSetting('USER_TWEETS_QUERY_ID', result.userTweetsQueryId);
-      updates.push(`UserTweets: ${result.userTweetsQueryId}`);
-    }
-    if (result.userByScreenNameQueryId) {
-      await setSetting('USER_BY_SCREEN_NAME_QUERY_ID', result.userByScreenNameQueryId);
-      updates.push(`UserByScreenName: ${result.userByScreenNameQueryId}`);
-    }
-
-    // 重新加载配置
-    await loadConfigFromDB();
-    console.log('✅ Query IDs updated:', updates.join(', '));
-
-    const config = getConfig();
-    res.json({
-      success: true,
-      message: 'Query IDs 自动获取并更新成功',
-      data: {
-        homeLatestTimelineQueryId: config.homeLatestTimelineQueryId,
-        userTweetsQueryId: config.userTweetsQueryId,
-        userByScreenNameQueryId: config.userByScreenNameQueryId,
-        updatedAt: config.updatedAt,
-        source: 'auto-fetch'
-      }
-    });
-  } catch (error) {
-    console.error('Error in auto-fetch:', error);
-    res.status(500).json({
       success: false,
       error: error.message
     });

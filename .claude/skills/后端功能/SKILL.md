@@ -427,9 +427,8 @@ export async function getReadStats() {
 | GET | /api/tweets/health | 健康检查 |
 | POST | /api/tweets/mark-read | 标记已读/未读 |
 | GET | /api/tweets/read-stats | 获取已读统计 |
-| GET | /api/tweets/config | 获取 Query ID 配置 |
-| POST | /api/tweets/config/query-id | 更新 Query ID |
-| POST | /api/tweets/config/fetch-query-id | 自动获取 Query ID |
+| GET | /api/tweets/queryid-config | 获取 Query ID 配置 |
+| POST | /api/tweets/queryid-config | 更新 Query ID |
 | POST | /api/tweets/read-status | 批量查询已读状态（前端自动同步用） |
 
 #### 批量查询已读状态

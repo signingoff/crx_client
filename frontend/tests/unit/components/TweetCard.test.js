@@ -217,29 +217,39 @@ describe('TweetCard Component', () => {
   describe('Lightbox', () => {
     it('opens lightbox on media click', async () => {
       const wrapper = mount(TweetCard, {
-        props: { tweet: mockTweetWithMedia }
+        props: { tweet: mockTweetWithMedia },
+        attachTo: document.body
       })
 
       const mediaItem = wrapper.find('.media-item')
       await mediaItem.trigger('click')
+      await nextTick()
 
-      expect(wrapper.find('.lightbox-overlay').exists()).toBe(true)
+      // Lightbox is teleported to body, check document.body
+      expect(document.body.querySelector('.lightbox-overlay')).not.toBeNull()
+
+      wrapper.unmount()
     })
 
     it('closes lightbox on overlay click', async () => {
       const wrapper = mount(TweetCard, {
-        props: { tweet: mockTweetWithMedia }
+        props: { tweet: mockTweetWithMedia },
+        attachTo: document.body
       })
 
       // Open lightbox
       await wrapper.find('.media-item').trigger('click')
-      expect(wrapper.find('.lightbox-overlay').exists()).toBe(true)
+      await nextTick()
+      expect(document.body.querySelector('.lightbox-overlay')).not.toBeNull()
 
-      // Close lightbox
-      await wrapper.find('.lightbox-overlay').trigger('click')
+      // Close lightbox by clicking on overlay (use document.body since it's teleported)
+      const overlay = document.body.querySelector('.lightbox-overlay')
+      overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await nextTick()
 
-      expect(wrapper.find('.lightbox-overlay').exists()).toBe(false)
+      expect(document.body.querySelector('.lightbox-overlay')).toBeNull()
+
+      wrapper.unmount()
     })
   })
 })

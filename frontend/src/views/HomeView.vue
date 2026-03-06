@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, inject, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import TweetList from '../components/TweetList.vue'
 import QueryIdSettings from '../components/QueryIdSettings.vue'
@@ -51,6 +51,7 @@ const loading = ref(false)
 const error = ref('')
 const lastUpdated = ref('')
 const showSettings = ref(false)
+const requireAuth = inject('requireAuth')
 let refreshInterval = null
 
 function normalizeTwitterPost(post) {
@@ -101,8 +102,11 @@ function normalizeXueqiuPost(post) {
   }
 }
 
-function openSettings() {
-  showSettings.value = true
+async function openSettings() {
+  const authed = await requireAuth()
+  if (authed) {
+    showSettings.value = true
+  }
 }
 
 function closeSettings() {

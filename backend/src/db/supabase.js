@@ -584,6 +584,28 @@ export async function saveTwitterPosts(posts) {
 }
 
 /**
+ * 删除指定 ID 的 Twitter 推文（用于编辑推文的旧版本替换）
+ * @param {Array<string>} tweetIds - 要删除的推文 ID 数组
+ * @returns {Promise<number>} 删除的记录数
+ */
+export async function deleteTwitterPostsByIds(tweetIds) {
+  if (!supabase || !tweetIds.length) return 0;
+  try {
+    const { error, count } = await supabase
+      .from(TWITTER_POSTS_TABLE)
+      .delete({ count: 'exact' })
+      .in('tweet_id', tweetIds);
+
+    if (error) throw error;
+    console.log(`删除 ${count || 0} 条旧版本 Twitter 推文`);
+    return count || 0;
+  } catch (err) {
+    console.error('删除旧版本 Twitter 推文失败:', err.message);
+    return 0;
+  }
+}
+
+/**
  * 获取 Twitter 推文（分页）
  * @param {number} page - 页码（从1开始）
  * @param {number} limit - 每页数量

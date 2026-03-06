@@ -15,7 +15,7 @@
 - ⚡ **已读管理** - 三连击推文卡片切换已读/未读状态
 - 👥 **用户监控** - 监控指定的雪球用户和 Twitter 用户（支持 @handle 输入）
 - 🔗 **来源感知** - 雪球帖子显示 ❄️ 并跳转雪球，X 推文跳转 x.com
-- 🔧 **Query ID 管理** - 自动检测或手动配置 X GraphQL Query ID
+- 🔧 **Query ID 管理** - 手动配置 X GraphQL Query ID
 
 ## 快速开始
 
@@ -78,7 +78,7 @@ xueqiu_crx/
 ## 注意事项
 
 1. **Cookie 有效期** - X.com 和雪球的 Cookie 会定期过期，需要重新获取
-2. **Query ID 更新** - 如果推文获取失败，在设置面板点击"自动检测"或手动更新 Query ID
+2. **Query ID 更新** - 如果推文获取失败，在设置面板手动更新 Query ID
 3. **UserByScreenName Query ID** - 仅在访问 X.com 用户主页时出现，需手动从 Network 抓取后填入设置
 4. **使用限制** - 过于频繁的请求可能导致账号被限制，建议保持默认同步间隔
 

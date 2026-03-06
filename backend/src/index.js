@@ -36,6 +36,10 @@ app.use('/api/xueqiu', xueqiuRouter);
 const twitterRouter = (await import('./routes/twitter.js')).default;
 app.use('/api/twitter', twitterRouter);
 
+// 认证路由
+const authRouter = (await import('./routes/auth.js')).default;
+app.use('/api/auth', authRouter);
+
 // 启动雪球帖子同步任务
 startXueqiuSync(300000); // 每 5 分钟同步一次
 
@@ -47,7 +51,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'X For You API Server',
     endpoints: {
-      'GET /api/tweets/config': '获取 Query ID 配置',
+      'GET /api/tweets/queryid-config': '获取 Query ID 配置',
       'GET /api/twitter/posts': '获取 Twitter 推文',
       'GET /api/xueqiu/posts': '获取雪球帖子'
     }

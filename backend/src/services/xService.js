@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getConfig, getXCookies, loadConfigFromDB } from '../config/settingsConfig.js';
+import { QUERY_TYPES, QUERY_ID_KEYS } from '../config/constants.js';
 
 const X_API_BASE = 'https://x.com/i/api/graphql';
 
@@ -11,8 +12,8 @@ let configLoaded = false;
  */
 function getQueryId(type) {
   const config = getConfig();
-  if (type === 'user') return config.userTweetsQueryId;
-  if (type === 'userByScreenName') return config.userByScreenNameQueryId;
+  if (type === QUERY_TYPES.USER) return config.userTweetsQueryId;
+  if (type === QUERY_TYPES.USER_BY_SCREEN_NAME) return config.userByScreenNameQueryId;
   return config.homeLatestTimelineQueryId;
 }
 
@@ -28,7 +29,7 @@ export async function getFollowingTweets(count = 20) {
     configLoaded = true;
   }
 
-  const queryId = getQueryId('following');
+  const queryId = getQueryId(QUERY_TYPES.FOLLOWING);
   const url = `${X_API_BASE}/${queryId}/HomeLatestTimeline`;
 
   // 从数据库获取最新的 cookies
@@ -113,9 +114,9 @@ export async function getUserTweets(userId, count = 20) {
     configLoaded = true;
   }
 
-  const queryId = getQueryId('user');
+  const queryId = getQueryId(QUERY_TYPES.USER);
   if (!queryId) {
-    console.warn('USER_TWEETS_QUERY_ID 未配置，跳过用户 timeline 抓取');
+    console.warn(`${QUERY_ID_KEYS[QUERY_TYPES.USER]} 未配置，跳过用户 timeline 抓取`);
     return [];
   }
 
@@ -241,9 +242,9 @@ export async function getUserByScreenName(screenName) {
     configLoaded = true;
   }
 
-  const queryId = getQueryId('userByScreenName');
+  const queryId = getQueryId(QUERY_TYPES.USER_BY_SCREEN_NAME);
   if (!queryId) {
-    console.warn('USER_BY_SCREEN_NAME_QUERY_ID 未配置，无法通过用户名查找用户');
+    console.warn(`${QUERY_ID_KEYS[QUERY_TYPES.USER_BY_SCREEN_NAME]} 未配置，无法通过用户名查找用户`);
     return null;
   }
 
@@ -441,8 +442,15 @@ function formatTweet(tweetData) {
     article = extractArticleFromUrls(tweet.entities, fullText);
   }
 
+  // 检测编辑推文 - 提取旧版本 ID 用于后续删除
+  const editControl = tweetData.edit_control || tweet.edit_control;
+  const editTweetIds = editControl?.edit_tweet_ids || [];
+  const currentId = tweet.id_str;
+  // 除了当前 ID 之外的所有编辑历史 ID（旧版本）
+  const previousEditIds = editTweetIds.filter(id => id !== currentId);
+
   return {
-    id: tweet.id_str,
+    id: currentId,
     text: fullText,
     isLongText,
     article,
@@ -465,7 +473,11 @@ function formatTweet(tweetData) {
       views: tweetData.views?.count
     },
     media: extractMedia(tweet),
-    entities: tweet.entities
+    entities: tweet.entities,
+    // 编辑推文相关字段
+    _editInfo: previousEditIds.length > 0 ? {
+      previousIds: previousEditIds
+    } : null
   };
 }
 

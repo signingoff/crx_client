@@ -1,5 +1,5 @@
 import { getFollowingTweets, getUserTweets } from './xService.js';
-import { saveTwitterPosts, getTweetUsers, saveTweetUser } from '../db/supabase.js';
+import { saveTwitterPosts, deleteTwitterPostsByIds, getTweetUsers, saveTweetUser } from '../db/supabase.js';
 
 let followingInterval = null;
 let userInterval = null;
@@ -50,7 +50,20 @@ async function syncFollowingTimeline() {
     }
     const uniqueTweets = Array.from(uniqueMap.values());
 
-    // 转换为 DB 格式
+    // 收集编辑推文的旧版本 ID（需要删除的）
+    const oldEditIds = [];
+    for (const tweet of uniqueTweets) {
+      if (tweet._editInfo?.previousIds?.length) {
+        oldEditIds.push(...tweet._editInfo.previousIds);
+      }
+    }
+
+    // 先删除旧版本的编辑推文
+    if (oldEditIds.length > 0) {
+      await deleteTwitterPostsByIds(oldEditIds);
+    }
+
+    // 转换为 DB 格式（移除内部字段 _editInfo）
     const dbPosts = uniqueTweets.map(tweet => ({
       tweet_id: tweet.id,
       text: tweet.text,
@@ -116,6 +129,19 @@ async function syncSingleUser(user) {
         profile_image_url: author.avatar || '',
         description: author.description || ''
       });
+    }
+
+    // 收集编辑推文的旧版本 ID（需要删除的）
+    const oldEditIds = [];
+    for (const tweet of tweets) {
+      if (tweet._editInfo?.previousIds?.length) {
+        oldEditIds.push(...tweet._editInfo.previousIds);
+      }
+    }
+
+    // 先删除旧版本的编辑推文
+    if (oldEditIds.length > 0) {
+      await deleteTwitterPostsByIds(oldEditIds);
     }
 
     const dbPosts = tweets.map(tweet => ({

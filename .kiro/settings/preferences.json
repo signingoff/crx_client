@@ -1,0 +1,14 @@
+{
+  "autoApprove": {
+    "enabled": true,
+    "toolCategories": ["read", "shell"],
+    "commands": [
+      "npm run dev",
+      "npm run test",
+      "git status",
+      "git add",
+      "git commit",
+      "git push"
+    ]
+  }
+}

@@ -9,42 +9,10 @@
       <div class="settings-body">
         <div class="section">
           <h4>Query ID 配置</h4>
-          <p class="description">
-            X.com 的 GraphQL Query ID 会定期更新。当获取推文失败时，可以自动检测或手动更新。
-          </p>
 
-          <div class="current-config" v-if="config">
-            <div class="config-item">
-              <label>Following (HomeLatestTimeline):</label>
-              <code>{{ config.homeLatestTimelineQueryId || '未设置' }}</code>
-            </div>
-            <div class="config-item">
-              <label>User Tweets:</label>
-              <code>{{ config.userTweetsQueryId || '未设置' }}</code>
-            </div>
-            <div class="config-item">
-              <label>UserByScreenName:</label>
-              <code>{{ config.userByScreenNameQueryId || '未设置' }}</code>
-            </div>
-            <div class="config-item" v-if="config.updatedAt">
-              <label>最后更新:</label>
-              <span class="time">{{ formatTime(config.updatedAt) }}</span>
-            </div>
-          </div>
 
-          <div class="actions">
-            <button
-              class="btn btn-primary"
-              @click="autoFetch"
-              :disabled="isFetching"
-            >
-              <span v-if="isFetching">🔄 检测中...</span>
-              <span v-else>🔍 自动从 X.com 检测</span>
-            </button>
-          </div>
 
           <div class="manual-section">
-            <h5>手动更新</h5>
             <div class="input-group">
               <label>Following Query ID:</label>
               <input
@@ -102,12 +70,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getQueryConfig, updateQueryId, fetchQueryIdFromX } from '../api/tweets.js'
+import { getQueryConfig, updateQueryId } from '../api/tweets.js'
 
 const emit = defineEmits(['close', 'updated'])
 
 const config = ref(null)
-const isFetching = ref(false)
 const message = ref('')
 const messageType = ref('info')
 const manualFollowingQueryId = ref('')
@@ -134,30 +101,6 @@ async function loadConfig() {
     }
   } catch (err) {
     showMessage('加载配置失败: ' + err.message, 'error')
-  }
-}
-
-async function autoFetch() {
-  isFetching.value = true
-  message.value = ''
-
-  try {
-    const response = await fetchQueryIdFromX()
-
-    if (response.success) {
-      config.value = response.data
-      manualFollowingQueryId.value = response.data.homeLatestTimelineQueryId || ''
-      manualUserTweetsQueryId.value = response.data.userTweetsQueryId || ''
-      manualUserByScreenNameQueryId.value = response.data.userByScreenNameQueryId || ''
-      showMessage('✅ Query ID 自动检测并更新成功！', 'success')
-      emit('updated')
-    } else {
-      showMessage('❌ ' + (response.error || '检测失败'), 'error')
-    }
-  } catch (err) {
-    showMessage('❌ 检测失败: ' + err.message, 'error')
-  } finally {
-    isFetching.value = false
   }
 }
 
@@ -253,7 +196,7 @@ function formatTime(isoString) {
 }
 
 .settings-body {
-  padding: 20px;
+  padding: 15px;
   overflow-y: auto;
   max-height: calc(90vh - 60px);
 }
@@ -390,7 +333,7 @@ function formatTime(isoString) {
   background: #f7f9fa;
   border-radius: 8px;
   padding: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .help-section h5 {

@@ -71,7 +71,9 @@ taskkill //F //PID <PID>
 
 ### 用户管理页
 - 路由：`/user_settings`，组件：`UserSettingsView.vue`
-- 左右双栏布局（雪球 / Twitter 并排）
+- 上下堆叠布局（雪球在上，Twitter 在下）
+- 平台标题、输入框、添加按钮在同一行（`.platform-header` + `.add-form-inline`）
+- 列表标题和同步按钮在同一行（`.table-header`）
 
 ## 数据库配置
 | 环境变量 | 说明 |
