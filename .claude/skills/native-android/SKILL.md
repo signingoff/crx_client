@@ -47,6 +47,7 @@ android-native/
 │   │   │   └── LoginViewModel.kt      # 登录 ViewModel
 │   │   ├── components/
 │   │   │   ├── TweetCard.kt           # 推文卡片组件
+│   │   │   ├── ClickableText.kt       # 可点击文本组件
 │   │   │   └── ImageLightbox.kt       # 图片放大查看组件
 │   │   ├── home/
 │   │   │   ├── HomeScreen.kt          # 首页
@@ -160,6 +161,81 @@ suspend fun addXueqiuUser(@Body user: MonitorUser): Response<ApiResponse<Unit>>
 suspend fun deleteXueqiuUser(@Path("id") id: String): Response<ApiResponse<Unit>>
 ```
 
+### 8. 可点击文本（@用户名、#话题标签、URL）
+
+**文件**: `ClickableText.kt`, `TweetCard.kt`
+
+- 使用 `ClickableText` + `AnnotatedString` 实现可点击文本
+- @用户名：跳转到 X 用户主页
+- #话题标签：跳转到 X 话题搜索页面
+- URL：使用 `Intent.ACTION_VIEW` 打开浏览器
+
+```kotlin
+// 正则匹配模式
+val pattern = Regex("(@[\\w_]+)|(#[\\w\u4e00-\u9fa5]+)|(https?://[^\\s]+)")
+
+// 点击处理
+annotatedString.getStringAnnotations(tag = "username", start = offset, end = offset)
+    .firstOrNull()?.let { annotation ->
+        val url = "https://x.com/${annotation.item}"
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+```
+
+### 9. 来源感知按钮
+
+**文件**: `TweetCard.kt`
+
+- 根据 `tweet.source` 显示不同图标
+  - `xueqiu` → ❄️ 雪花图标
+  - `twitter` → 𝕏 X 图标
+- 跳转按钮：点击打开原推文/帖子
+  - 雪球: `https://xueqiu.com/{authorId}/{tweetId}`
+  - Twitter: `https://x.com/{username}/status/{tweetId}`
+
+### 10. 分页加载更多
+
+**文件**: `HomeViewModel.kt`, `HomeScreen.kt`, `TweetRepository.kt`
+
+- 支持 `page` 和 `limit` 参数的分页加载
+- 滚动到底部自动触发加载更多
+- 使用 `LazyListState` + `snapshotFlow` 检测滚动位置
+- 合并并去重新旧数据，按时间排序
+
+```kotlin
+// API 支持分页
+@GET("twitter/posts")
+suspend fun getTwitterPosts(
+    @Query("page") page: Int = 1,
+    @Query("limit") limit: Int = 20
+): Response<ApiResponse<List<Tweet>>>
+
+// ViewModel 加载更多
+fun loadMoreTweets() {
+    if (_isLoadingMore.value || !_hasMoreData.value) return
+    currentPage++
+    // 加载并合并数据
+    val combinedTweets = (_tweets.value + newTweets)
+        .distinctBy { it.id }
+        .sortedByDescending { it.createdAt }
+}
+```
+
+### 11. 长文本展开/收起
+
+**文件**: `TweetCard.kt`
+
+- 默认显示 5 行，超出显示省略号
+- 点击"显示更多"展开全部内容
+- 点击"收起"恢复默认行数
+
+```kotlin
+ClickableTweetText(
+    text = tweet.text,
+    maxLines = if (isExpanded) Int.MAX_VALUE else MAX_LINES_COLLAPSED
+)
+```
+
 ### 7. Query ID 配置
 
 **文件**: `UserManagementViewModel.kt`, `SettingsScreen.kt`
@@ -200,9 +276,9 @@ data class Author(
     val name: String,
     val username: String,
     val avatar: String,
-    val description: String? = null,
-    val followersCount: Int? = null,
-    val followingCount: Int? = null
+    val description: String? = null,      // 用户简介
+    val followersCount: Int? = null,      // 粉丝数
+    val followingCount: Int? = null       // 关注数
 )
 ```
 
@@ -210,11 +286,18 @@ data class Author(
 
 ```kotlin
 interface ApiService {
+    // 推文列表（支持分页）
     @GET("twitter/posts")
-    suspend fun getTwitterPosts(): Response<ApiResponse<List<Tweet>>>
+    suspend fun getTwitterPosts(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<ApiResponse<List<Tweet>>>
 
     @GET("xueqiu/posts")
-    suspend fun getXueqiuPosts(): Response<ApiResponse<List<Tweet>>>
+    suspend fun getXueqiuPosts(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<ApiResponse<List<Tweet>>>
 
     @POST("twitter/posts/{id}/read")
     suspend fun markTwitterRead(
