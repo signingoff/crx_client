@@ -52,6 +52,46 @@ npm run dev
 
 4. 打开浏览器访问 http://localhost:5173
 
+### 3. 编译 Android 应用（可选）
+
+**环境要求**:
+- Android Studio Hedgehog (2023.1.1) 或更高版本
+- JDK 17
+- Android SDK 34
+
+**编译步骤**:
+
+```bash
+# 1. 使用 Android Studio 打开项目
+cd android-native
+# 或在 Android Studio 中选择 File → Open → android-native 目录
+
+# 2. 命令行编译
+./gradlew assembleDebug        # 编译 Debug APK
+./gradlew assembleRelease      # 编译 Release APK
+```
+
+**输出位置**:
+- Debug: `android-native/app/build/outputs/apk/debug/app-debug.apk`
+- Release: `android-native/app/build/outputs/apk/release/app-release-unsigned.apk`
+
+**发布到设备**:
+
+```bash
+# 安装 Debug 版本到连接的设备
+./gradlew installDebug
+
+# 或使用 adb
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Android 应用功能**:
+- 混合信息流（Twitter + 雪球）
+- 下拉刷新 + 滚动加载更多
+- 图片 Lightbox（双指缩放）
+- 底部导航栏（首页/用户/设置）
+- 登录认证（JWT Token）
+
 ## 使用说明
 
 ### 界面操作
@@ -93,10 +133,13 @@ xueqiu_crx/
 
 ## 技术栈
 
-- **前端**: Vue 3 + Vite（部署于 Vercel）
-- **后端**: Node.js + Express（部署于 Render）
-- **数据库**: Supabase（PostgreSQL）
-- **数据源**: X.com GraphQL API + 雪球网 API
+| 平台 | 技术 | 部署/构建 |
+|------|------|----------|
+| **前端** | Vue 3 + Vite | Vercel |
+| **后端** | Node.js + Express | Render |
+| **数据库** | Supabase (PostgreSQL) | - |
+| **Android** | Kotlin + Jetpack Compose | APK / Google Play |
+| **数据源** | X.com GraphQL API + 雪球网 API | - |
 
 ## 许可证
 
