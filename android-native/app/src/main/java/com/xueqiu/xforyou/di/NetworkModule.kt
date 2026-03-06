@@ -1,6 +1,7 @@
 package com.xueqiu.xforyou.di
 
 import com.xueqiu.xforyou.data.api.ApiService
+import com.xueqiu.xforyou.data.local.SettingsDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,8 +16,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://x-for-you-backend.onrender.com/api/"
-
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
@@ -30,9 +29,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(client: OkHttpClient): Retrofit {
+    fun provideRetrofit(client: OkHttpClient, settingsDataStore: SettingsDataStore): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(settingsDataStore.baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

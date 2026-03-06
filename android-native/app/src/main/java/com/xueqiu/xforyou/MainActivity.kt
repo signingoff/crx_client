@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.xueqiu.xforyou.ui.home.HomeScreen
+import com.xueqiu.xforyou.ui.navigation.AppNavigation
 import com.xueqiu.xforyou.ui.theme.XForYouTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomeScreen()
+                    AppNavigation()
                 }
             }
         }

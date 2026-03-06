@@ -9,7 +9,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,19 +20,37 @@ import coil.compose.AsyncImage
 import com.xueqiu.xforyou.data.model.Tweet
 import com.xueqiu.xforyou.ui.theme.Success
 import com.xueqiu.xforyou.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+
+private const val TRIPLE_CLICK_TIMEOUT = 500L // 500ms 内完成三连击
 
 @Composable
 fun TweetCard(
     tweet: Tweet,
-    onClick: () -> Unit,
+    onTripleClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var clickCount by remember { mutableIntStateOf(0) }
+    var lastClickTime by remember { mutableLongStateOf(0L) }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastClickTime > TRIPLE_CLICK_TIMEOUT) {
+                    clickCount = 1
+                } else {
+                    clickCount++
+                    if (clickCount >= 3) {
+                        onTripleClick()
+                        clickCount = 0
+                    }
+                }
+                lastClickTime = currentTime
+            },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -114,6 +132,7 @@ fun TweetCard(
 private fun MediaGrid(media: List<com.xueqiu.xforyou.data.model.Media>) {
     val displayMedia = media.take(4)
     val columns = if (displayMedia.size == 1) 1 else 2
+    var selectedImageUrl by remember { mutableStateOf<String?>(null) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -130,12 +149,21 @@ private fun MediaGrid(media: List<com.xueqiu.xforyou.data.model.Media>) {
                         modifier = Modifier
                             .weight(1f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { selectedImageUrl = m.url },
                         contentScale = ContentScale.Crop
                     )
                 }
             }
         }
+    }
+
+    // Lightbox
+    selectedImageUrl?.let { url ->
+        ImageLightbox(
+            imageUrl = url,
+            onDismiss = { selectedImageUrl = null }
+        )
     }
 }
 

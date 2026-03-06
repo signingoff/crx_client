@@ -7,6 +7,8 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +21,7 @@ import com.xueqiu.xforyou.ui.components.TweetCard
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
+    onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val tweets by viewModel.tweets
@@ -34,6 +37,14 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("🔥 X For You") },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -53,7 +64,7 @@ fun HomeScreen(
                 items(tweets, key = { it.id }) { tweet ->
                     TweetCard(
                         tweet = tweet,
-                        onClick = { viewModel.markTweetRead(tweet) }
+                        onTripleClick = { viewModel.toggleTweetRead(tweet) }
                     )
                 }
             }

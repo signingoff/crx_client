@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.xueqiu.xforyou.data.model.Tweet
 import com.xueqiu.xforyou.data.repository.TweetRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,8 +26,25 @@ class HomeViewModel @Inject constructor(
     private val _error = mutableStateOf<String?>(null)
     val error: State<String?> = _error
 
+    private var refreshJob: Job? = null
+
     init {
         loadTweets()
+        startAutoRefresh()
+    }
+
+    private fun startAutoRefresh() {
+        refreshJob = viewModelScope.launch {
+            while (true) {
+                delay(8000) // 8秒刷新一次
+                loadTweets()
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        refreshJob?.cancel()
     }
 
     fun loadTweets() {
@@ -52,20 +71,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun markTweetRead(tweet: Tweet) {
-        if (tweet.isRead) return
-
+    fun toggleTweetRead(tweet: Tweet) {
         viewModelScope.launch {
+            val newReadState = !tweet.isRead
             val result = if (tweet.source == "twitter") {
-                repository.markTwitterRead(tweet.id, true)
+                repository.markTwitterRead(tweet.id, newReadState)
             } else {
-                repository.markXueqiuRead(tweet.id, true)
+                repository.markXueqiuRead(tweet.id, newReadState)
             }
 
             result.onSuccess {
                 // 更新本地状态
                 _tweets.value = _tweets.value.map {
-                    if (it.id == tweet.id) it.copy(isRead = true) else it
+                    if (it.id == tweet.id) it.copy(isRead = newReadState) else it
                 }
             }
         }
