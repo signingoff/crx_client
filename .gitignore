@@ -46,3 +46,6 @@ backend/data/
 
 # GitHub Token (本地使用，禁止上传)
 .github-token
+
+# Git worktrees
+.worktrees/
