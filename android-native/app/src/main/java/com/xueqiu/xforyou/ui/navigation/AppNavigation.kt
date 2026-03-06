@@ -38,11 +38,6 @@ fun AppNavigation() {
             SettingsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
-                },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                    }
                 }
             )
         }
