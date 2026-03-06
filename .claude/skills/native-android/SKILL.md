@@ -24,8 +24,10 @@ android-native/
 ├── app/src/main/java/com/xueqiu/xforyou/
 │   ├── data/
 │   │   ├── api/
-│   │   │   └── ApiService.kt          # Retrofit API 接口
+│   │   │   ├── ApiService.kt          # 推文 API 接口
+│   │   │   └── AuthApiService.kt      # 认证 API 接口
 │   │   ├── local/
+│   │   │   ├── AuthDataStore.kt       # Token 存储
 │   │   │   └── SettingsDataStore.kt   # SharedPreferences 封装
 │   │   ├── model/
 │   │   │   ├── Tweet.kt               # 推文数据模型
@@ -33,10 +35,14 @@ android-native/
 │   │   │   ├── Media.kt               # 媒体数据模型
 │   │   │   └── ApiResponse.kt         # API 响应包装类
 │   │   └── repository/
-│   │       └── TweetRepository.kt     # 数据仓库层
+│   │       ├── AuthRepository.kt      # 认证仓库
+│   │       └── TweetRepository.kt     # 推文仓库
 │   ├── di/
 │   │   └── NetworkModule.kt           # Hilt 依赖注入模块
 │   ├── ui/
+│   │   ├── auth/
+│   │   │   ├── LoginScreen.kt         # 登录/设置密码页
+│   │   │   └── LoginViewModel.kt      # 登录 ViewModel
 │   │   ├── components/
 │   │   │   ├── TweetCard.kt           # 推文卡片组件
 │   │   │   └── ImageLightbox.kt       # 图片放大查看组件
@@ -93,6 +99,34 @@ android-native/
 - 使用 SharedPreferences 存储
 - 默认地址: `https://x-for-you-backend.onrender.com/api/`
 - 修改后需重启应用生效
+
+### 5. 用户认证
+
+**文件**: `AuthDataStore.kt`, `AuthRepository.kt`, `LoginScreen.kt`, `LoginViewModel.kt`
+
+- Token 存储在 SharedPreferences
+- 启动时检查 token 有效性
+- 首次使用显示设置密码界面
+- 支持退出登录
+
+**API 接口**:
+```kotlin
+interface AuthApiService {
+    @GET("auth/has-password")
+    suspend fun hasPassword(): Response<ApiResponse<HasPasswordResponse>>
+
+    @POST("auth/set-password")
+    suspend fun setPassword(@Body body: PasswordRequest): Response<ApiResponse<LoginResponse>>
+
+    @POST("auth/login")
+    suspend fun login(@Body body: PasswordRequest): Response<ApiResponse<LoginResponse>>
+
+    @POST("auth/verify")
+    suspend fun verifyToken(@Body body: TokenRequest): Response<ApiResponse<Boolean>>
+}
+```
+
+**Auth Interceptor**: 自动为请求附加 `Authorization: Bearer {token}` Header
 
 ## 数据模型
 
