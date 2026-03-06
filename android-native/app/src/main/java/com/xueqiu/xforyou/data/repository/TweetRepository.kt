@@ -1,7 +1,6 @@
 package com.xueqiu.xforyou.data.repository
 
 import com.xueqiu.xforyou.data.api.ApiService
-import com.xueqiu.xforyou.data.model.MarkReadRequest
 import com.xueqiu.xforyou.data.model.Tweet
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,32 +39,6 @@ class TweetRepository @Inject constructor(
                 }
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Network error"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markTwitterRead(id: String, isRead: Boolean): Result<Unit> {
-        return try {
-            val response = apiService.markTwitterRead(id, MarkReadRequest(isRead))
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception(response.body()?.error ?: "Failed to mark read"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markXueqiuRead(id: String, isRead: Boolean): Result<Unit> {
-        return try {
-            val response = apiService.markXueqiuRead(id, MarkReadRequest(isRead))
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception(response.body()?.error ?: "Failed to mark read"))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
+
 package com.xueqiu.xforyou.ui.home
 
 import androidx.compose.foundation.layout.*
@@ -8,12 +10,11 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,10 +24,10 @@ import com.xueqiu.xforyou.ui.components.TweetCard
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-@OptIn(ExperimentalMaterialApi::class)
+@Suppress("OPT_IN_USAGE")
 @Composable
 fun HomeScreen(
-    onNavigateToSettings: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val tweets by viewModel.tweets
@@ -61,14 +62,6 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("🔥 X For You") },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -77,7 +70,7 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(hostState = remember { SnackbarHostState() }) }
     ) { padding ->
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
                 .pullRefresh(pullRefreshState)
@@ -87,10 +80,7 @@ fun HomeScreen(
                 state = listState
             ) {
                 items(tweets, key = { it.id }) { tweet ->
-                    TweetCard(
-                        tweet = tweet,
-                        onTripleClick = { viewModel.toggleTweetRead(tweet) }
-                    )
+                    TweetCard(tweet = tweet)
                 }
 
                 // 加载更多指示器

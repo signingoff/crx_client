@@ -23,23 +23,3 @@ export async function updateQueryId(type, queryId) {
   })
   return response.data
 }
-
-/**
- * 标记 Twitter 推文已读/未读
- * @param {string} id - 推文 ID
- * @param {boolean} isRead - 是否已读
- */
-export async function markTwitterPostRead(id, isRead) {
-  const response = await axios.post(`${API_BASE}/twitter/posts/${id}/read`, { isRead })
-  return response.data
-}
-
-/**
- * 标记雪球帖子已读/未读
- * @param {string|number} id - 帖子 ID
- * @param {boolean} isRead - 是否已读
- */
-export async function markXueqiuPostRead(id, isRead) {
-  const response = await axios.post(`${API_BASE}/xueqiu/posts/${id}/read`, { isRead })
-  return response.data
-}

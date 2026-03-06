@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.xueqiu.xforyou.data.local.SettingsDataStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,9 +29,11 @@ fun LoginScreen(
     val error by viewModel.error
     val isSetupMode by viewModel.isSetupMode
     val isLoggedIn by viewModel.isLoggedIn
+    val baseUrl by viewModel.baseUrl
 
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var showUrlDialog by remember { mutableStateOf(false) }
 
     val passwordFocusRequester = remember { FocusRequester() }
 
@@ -51,6 +55,14 @@ fun LoginScreen(
         topBar = {
             TopAppBar(
                 title = { Text(if (isSetupMode == true) "设置密码" else "登录") },
+                actions = {
+                    IconButton(onClick = { showUrlDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "配置后端地址"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -65,6 +77,15 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // 当前后端地址提示
+            Text(
+                text = "后端: ${baseUrl.take(30)}...",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // 图标
             Icon(
                 imageVector = Icons.Default.Lock,
@@ -185,4 +206,64 @@ fun LoginScreen(
             }
         }
     }
+
+    // 后端地址配置对话框
+    if (showUrlDialog) {
+        ServerUrlDialog(
+            currentUrl = baseUrl,
+            onDismiss = { showUrlDialog = false },
+            onConfirm = { newUrl ->
+                viewModel.saveBaseUrl(newUrl)
+                showUrlDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ServerUrlDialog(
+    currentUrl: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var url by remember { mutableStateOf(currentUrl) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("配置后端地址") },
+        text = {
+            Column {
+                Text(
+                    text = "请确保后端地址正确，修改后需要重新登录",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("后端地址") },
+                    placeholder = { Text("https://...") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Done
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(url) },
+                enabled = url.isNotBlank()
+            ) {
+                Text("保存")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }

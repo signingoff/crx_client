@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xueqiu.xforyou.data.local.SettingsDataStore
 import com.xueqiu.xforyou.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -11,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val settingsDataStore: SettingsDataStore
 ) : ViewModel() {
 
     private val _isLoading = mutableStateOf(false)
@@ -26,8 +28,20 @@ class LoginViewModel @Inject constructor(
     private val _isLoggedIn = mutableStateOf(false)
     val isLoggedIn: State<Boolean> = _isLoggedIn
 
+    private val _baseUrl = mutableStateOf(settingsDataStore.baseUrl)
+    val baseUrl: State<String> = _baseUrl
+
     init {
         checkAuthStatus()
+    }
+
+    fun saveBaseUrl(url: String) {
+        settingsDataStore.baseUrl = url
+        _baseUrl.value = url
+        // 重新检查登录状态（连接到新后端）
+        _isLoggedIn.value = false
+        _isSetupMode.value = null
+        _error.value = "后端地址已更改，请重新登录"
     }
 
     private fun checkAuthStatus() {

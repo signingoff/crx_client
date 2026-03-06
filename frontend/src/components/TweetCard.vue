@@ -2,8 +2,6 @@
   <div
     class="tweet-card"
     :class="{ 'is-selected': isSelected, 'is-read': actualIsRead }"
-    @click="handleTripleClick"
-    title="连续单击3次切换已读/未读"
   >
     <!-- 已读标记 -->
     <div v-if="actualIsRead" class="read-indicator">✓ 已读</div>
@@ -100,7 +98,6 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { markTwitterPostRead, markXueqiuPostRead } from '../api/tweets.js'
 
 const props = defineProps({
   tweet: {
@@ -133,11 +130,6 @@ const actualIsRead = computed(() => {
 watch(() => props.isRead, (newVal) => {
   internalIsRead.value = newVal
 })
-
-// 三连击检测
-const clickCount = ref(0)
-let clickTimer = null
-const TRIPLE_CLICK_DELAY = 500 // 500ms 内连续点击3次视为三连击
 
 // 只获取图片类型的媒体
 const photoMedia = computed(() => {
@@ -228,47 +220,6 @@ function openTweetLink() {
 function openArticle() {
   if (props.tweet.article?.url) {
     window.open(props.tweet.article.url, '_blank')
-  }
-}
-
-// 三连击切换已读/未读状态
-async function handleTripleClick() {
-  clickCount.value++
-
-  // 第一次点击时启动定时器
-  if (!clickTimer) {
-    clickTimer = setTimeout(() => {
-      // 超时重置计数
-      clickCount.value = 0
-      clickTimer = null
-    }, TRIPLE_CLICK_DELAY)
-  }
-
-  // 达到3次点击，执行切换
-  if (clickCount.value >= 3) {
-    // 清除定时器
-    clearTimeout(clickTimer)
-    clickTimer = null
-    clickCount.value = 0
-
-    // 切换状态
-    const newReadState = !internalIsRead.value
-    internalIsRead.value = newReadState
-    // 通知父组件状态变更
-    emit('update:isRead', newReadState)
-
-    try {
-      if (props.tweet.source === 'xueqiu') {
-        await markXueqiuPostRead(props.tweet.id, newReadState)
-      } else {
-        await markTwitterPostRead(props.tweet.id, newReadState)
-      }
-    } catch (err) {
-      console.error('标记已读/未读失败:', err)
-      // 如果失败，回滚状态
-      internalIsRead.value = !newReadState
-      emit('update:isRead', !newReadState)
-    }
   }
 }
 

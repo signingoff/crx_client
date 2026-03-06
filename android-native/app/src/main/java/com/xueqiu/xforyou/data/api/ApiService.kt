@@ -1,7 +1,6 @@
 package com.xueqiu.xforyou.data.api
 
 import com.xueqiu.xforyou.data.model.ApiResponse
-import com.xueqiu.xforyou.data.model.MarkReadRequest
 import com.xueqiu.xforyou.data.model.Tweet
 import com.xueqiu.xforyou.data.model.MonitorUser
 import com.xueqiu.xforyou.data.model.QueryIdConfig
@@ -25,18 +24,6 @@ interface ApiService {
         @retrofit2.http.Query("page") page: Int = 1,
         @retrofit2.http.Query("limit") limit: Int = 20
     ): Response<ApiResponse<List<Tweet>>>
-
-    @POST("twitter/posts/{id}/read")
-    suspend fun markTwitterRead(
-        @Path("id") id: String,
-        @Body body: MarkReadRequest
-    ): Response<ApiResponse<Unit>>
-
-    @POST("xueqiu/posts/{id}/read")
-    suspend fun markXueqiuRead(
-        @Path("id") id: String,
-        @Body body: MarkReadRequest
-    ): Response<ApiResponse<Unit>>
 
     // Twitter 用户管理
     @GET("twitter/users")
@@ -64,6 +51,13 @@ interface ApiService {
 
     @POST("tweets/queryid-config")
     suspend fun updateQueryIdConfig(@Body config: QueryIdUpdateRequest): Response<ApiResponse<QueryIdConfig>>
+
+    // 同步接口
+    @GET("xueqiu/sync")
+    suspend fun syncXueqiu(): Response<ApiResponse<Unit>>
+
+    @POST("twitter/users/sync")
+    suspend fun syncTwitterUsers(): Response<ApiResponse<Unit>>
 }
 
 data class QueryIdUpdateRequest(

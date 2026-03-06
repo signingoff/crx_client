@@ -213,6 +213,48 @@ class UserManagementViewModel @Inject constructor(
         }
     }
 
+    fun syncXueqiu() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val response = apiService.syncXueqiu()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _successMessage.value = "✅ 同步完成"
+                    loadXueqiuUsers()
+                } else {
+                    _error.value = response.body()?.error ?: "同步失败"
+                }
+            } catch (e: Exception) {
+                _error.value = "❌ 同步失败: ${e.message}"
+            }
+
+            _isLoading.value = false
+        }
+    }
+
+    fun syncTwitter() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val response = apiService.syncTwitterUsers()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _successMessage.value = "✅ 同步完成"
+                    loadTwitterUsers()
+                } else {
+                    _error.value = response.body()?.error ?: "同步失败"
+                }
+            } catch (e: Exception) {
+                _error.value = "❌ 同步失败: ${e.message}"
+            }
+
+            _isLoading.value = false
+        }
+    }
+
     fun clearError() {
         _error.value = null
     }

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllXueqiuPosts, getXueqiuUsers, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts, markXueqiuPostRead } from '../db/supabase.js';
+import { getAllXueqiuPosts, getXueqiuUsers, ensureXueqiuUsersTable, saveXueqiuUser, deleteXueqiuUser, getXueqiuUserPostCounts } from '../db/supabase.js';
 import { triggerSync } from '../services/xueqiuSync.js';
 
 const router = express.Router();
@@ -144,23 +144,6 @@ router.get('/posts', async (req, res) => {
         hasMore: page * limit < total
       }
     });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-/**
- * 标记雪球帖子已读/未读
- * POST /api/xueqiu/posts/:id/read
- * Body: { isRead: boolean }
- */
-router.post('/posts/:id/read', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isRead = true } = req.body;
-    const ok = await markXueqiuPostRead(parseInt(id), isRead);
-    if (!ok) return res.status(500).json({ success: false, error: '更新失败，请检查数据库' });
-    res.json({ success: true, isRead });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

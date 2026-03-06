@@ -34,6 +34,13 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material.ExperimentalMaterialApi"
+        )
+    }
+
+    lint {
+        disable += "OPT_IN_USAGE"
     }
 
     buildFeatures {
@@ -51,6 +58,14 @@ android {
     }
 }
 
+project.afterEvaluate {
+    configurations.forEach { conf ->
+        if (conf.name.contains("androidJdkImage")) {
+            conf.attributes.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+        }
+    }
+}
+
 dependencies {
     // Compose
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
@@ -58,6 +73,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material")
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation

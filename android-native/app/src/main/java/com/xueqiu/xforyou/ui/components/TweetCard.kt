@@ -31,37 +31,20 @@ import com.xueqiu.xforyou.ui.theme.TwitterBlue
 import java.text.SimpleDateFormat
 import java.util.*
 
-private const val TRIPLE_CLICK_TIMEOUT = 500L // 500ms 内完成三连击
 private const val MAX_LINES_COLLAPSED = 5 // 收起时最大行数
 
 @Composable
 fun TweetCard(
     tweet: Tweet,
-    onTripleClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var clickCount by remember { mutableIntStateOf(0) }
-    var lastClickTime by remember { mutableLongStateOf(0L) }
     var isExpanded by remember { mutableStateOf(false) }
     var isTextOverflown by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .clickable {
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastClickTime > TRIPLE_CLICK_TIMEOUT) {
-                    clickCount = 1
-                } else {
-                    clickCount++
-                    if (clickCount >= 3) {
-                        onTripleClick()
-                        clickCount = 0
-                    }
-                }
-                lastClickTime = currentTime
-            },
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

@@ -119,24 +119,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun toggleTweetRead(tweet: Tweet) {
-        viewModelScope.launch {
-            val newReadState = !tweet.isRead
-            val result = if (tweet.source == "twitter") {
-                repository.markTwitterRead(tweet.id, newReadState)
-            } else {
-                repository.markXueqiuRead(tweet.id, newReadState)
-            }
-
-            result.onSuccess {
-                // 更新本地状态
-                _tweets.value = _tweets.value.map {
-                    if (it.id == tweet.id) it.copy(isRead = newReadState) else it
-                }
-            }
-        }
-    }
-
     fun refresh() {
         viewModelScope.launch {
             val twitterResult = repository.getTwitterPosts(page = 1, limit = pageSize)

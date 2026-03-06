@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllTwitterPosts, markTwitterPostRead, getTweetUsers, saveTweetUser, deleteTweetUser } from '../db/supabase.js';
+import { getAllTwitterPosts, getTweetUsers, saveTweetUser, deleteTweetUser } from '../db/supabase.js';
 import { triggerTwitterSync } from '../services/twitterSync.js';
 import { triggerTwitterUserSync } from '../services/twitterSync.js';
 import { getUserByScreenName, getUserTweets } from '../services/xService.js';
@@ -19,23 +19,6 @@ router.get('/posts', async (req, res) => {
       success: true,
       data: { posts, total, page, hasMore: page * limit < total }
     });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-/**
- * POST /api/twitter/posts/:id/read
- * 标记推文已读/未读
- * Body: { isRead: boolean }
- */
-router.post('/posts/:id/read', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isRead = true } = req.body;
-    const ok = await markTwitterPostRead(id, isRead);
-    if (!ok) return res.status(500).json({ success: false, error: '更新失败，请检查数据库' });
-    res.json({ success: true, isRead });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
