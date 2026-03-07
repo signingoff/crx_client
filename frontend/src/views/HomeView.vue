@@ -72,6 +72,10 @@ const pageSize = 30
 
 let refreshInterval = null
 
+function getFeedItemKey(item) {
+  return `${item.source}:${item.id}`
+}
+
 function normalizeTwitterPost(post) {
   return {
     id: post.tweet_id,
@@ -155,15 +159,15 @@ async function loadTweets() {
     const allNew = [...twitterPosts, ...xueqiuPosts]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-    const existingIds = new Set(tweets.value.map(t => t.id))
-    const newItems = allNew.filter(t => !existingIds.has(t.id))
+    const existingIds = new Set(tweets.value.map(getFeedItemKey))
+    const newItems = allNew.filter(t => !existingIds.has(getFeedItemKey(t)))
 
     if (tweets.value.length === 0) {
       tweets.value = allNew
       updateLastUpdatedTime()
     } else if (newItems.length > 0) {
-      const pendingIds = new Set(pendingTweets.value.map(t => t.id))
-      const trulyNew = newItems.filter(t => !pendingIds.has(t.id))
+      const pendingIds = new Set(pendingTweets.value.map(getFeedItemKey))
+      const trulyNew = newItems.filter(t => !pendingIds.has(getFeedItemKey(t)))
       if (trulyNew.length > 0) {
         pendingTweets.value = [...trulyNew, ...pendingTweets.value]
       }
@@ -206,7 +210,7 @@ async function loadMoreTweets() {
       // 合并新旧数据，去重，按时间排序
       const combined = [...tweets.value, ...newPosts]
       const unique = combined.filter((item, index, self) =>
-        index === self.findIndex(t => t.id === item.id)
+        index === self.findIndex(t => getFeedItemKey(t) === getFeedItemKey(item))
       )
       tweets.value = unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     } else {

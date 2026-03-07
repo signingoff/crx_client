@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api'
+const API_BASE = import.meta.env.VITE_API_BASE
+  ? `${import.meta.env.VITE_API_BASE}/auth`
+  : '/api/auth'
 
 const AUTH_TOKEN_KEY = 'xfy_auth_token'
 
@@ -29,7 +31,7 @@ export function clearToken() {
  * 检查是否已设置密码
  */
 export async function hasPassword() {
-  const res = await axios.get(`${API_BASE}/auth/has-password`)
+  const res = await axios.get(`${API_BASE}/has-password`)
   return res.data.hasPassword
 }
 
@@ -37,7 +39,7 @@ export async function hasPassword() {
  * 首次设置密码
  */
 export async function setPassword(password) {
-  const res = await axios.post(`${API_BASE}/auth/set-password`, { password })
+  const res = await axios.post(`${API_BASE}/set-password`, { password })
   if (res.data.success && res.data.token) {
     saveToken(res.data.token)
   }
@@ -48,7 +50,7 @@ export async function setPassword(password) {
  * 登录
  */
 export async function login(password) {
-  const res = await axios.post(`${API_BASE}/auth/login`, { password })
+  const res = await axios.post(`${API_BASE}/login`, { password })
   if (res.data.success && res.data.token) {
     saveToken(res.data.token)
   }
@@ -62,7 +64,7 @@ export async function verifyToken() {
   const token = getStoredToken()
   if (!token) return false
   try {
-    const res = await axios.post(`${API_BASE}/auth/verify`, { token })
+    const res = await axios.post(`${API_BASE}/verify`, { token })
     if (res.data.valid) return true
     clearToken()
     return false

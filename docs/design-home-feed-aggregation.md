@@ -58,7 +58,16 @@ const allNew = [...xTweets, ...xueqiuPosts]
 ```
 
 - 雪球接口失败时 `.catch(() => null)` 静默处理，不影响 X 推文正常显示
-- 用现有 existingIds 去重逻辑处理 `allNew`（pendingTweets 行为不变）
+- 去重键必须包含来源，避免 Twitter 和雪球在相同 `id` 下互相覆盖：
+```js
+function getFeedItemKey(item) {
+  return `${item.source}:${item.id}`
+}
+
+const existingIds = new Set(tweets.value.map(getFeedItemKey))
+const newItems = allNew.filter(t => !existingIds.has(getFeedItemKey(t)))
+```
+- `pendingTweets` 和分页合并去重也要复用同一个 `getFeedItemKey()`
 - 补充 `import axios from 'axios'`
 
 ---
@@ -95,8 +104,9 @@ function openTweetLink() {
 
 | 文件 | 修改内容 |
 |------|---------|
-| `frontend/src/views/HomeView.vue` | 并行拉取 + 归一化 + 合并排序 |
+| `frontend/src/views/HomeView.vue` | 并行拉取 + 归一化 + 按 `source:id` 去重后合并排序 |
 | `frontend/src/components/TweetCard.vue` | 来源感知链接按钮 |
+| `frontend/src/api/auth.js` | 认证接口默认走相对路径 `/api/auth/*`，仅在配置 `VITE_API_BASE` 时拼接远端地址 |
 
 **不需要修改**：后端、路由、XueqiuView
 
@@ -109,3 +119,5 @@ function openTweetLink() {
 3. X 推文右上角仍显示 X SVG，点击 → 跳转 `x.com/i/web/status/...`
 4. 15 秒自动刷新 → 两个来源都更新
 5. 有新内容 → "Load N posts" 条照常出现
+6. Twitter 和雪球即使出现相同 `id`，首页也不会互相覆盖
+7. 生产环境未配置 `VITE_API_BASE` 时，认证请求仍应命中当前站点的 `/api/auth/*`
