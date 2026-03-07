@@ -356,6 +356,45 @@ export async function saveXueqiuPosts(posts, userId, userScreenName) {
   if (!supabase) return false;
 
   try {
+    // 先 upsert 用户（针对首页 feed 等场景，用户可能不存在）
+    if (posts.length > 0) {
+      try {
+        // 提取所有用户信息
+        const users = posts
+          .map(post => post.user)
+          .filter(Boolean)
+          .map(user => ({
+            id: user.id,
+            user_id: user.id,
+            screen_name: user.screen_name || '',
+            profile_image_url: user.profile_image_url || '',
+            description: '',
+            followers_count: 0,
+            friends_count: 0,
+            statuses_count: 0
+          }));
+
+        // 去重（按 user_id）
+        const uniqueUsers = [...new Map(users.map(u => [u.user_id, u])).values()];
+
+        if (uniqueUsers.length > 0) {
+          const { error: upsertError } = await supabase
+            .from(XUEQIU_USERS_TABLE)
+            .upsert(uniqueUsers, { onConflict: 'user_id' });
+
+          if (upsertError) {
+            console.log('批量 upsert 用户失败:', upsertError.message);
+            // 不中断，继续保存帖子
+          } else {
+            console.log(`✓ 自动创建/更新 ${uniqueUsers.length} 个用户`);
+          }
+        }
+      } catch (userErr) {
+        console.log('自动创建用户异常:', userErr.message);
+        // 不中断，继续保存帖子
+      }
+    }
+
     // 确保表存在
     await ensureXueqiuPostsTable();
 
